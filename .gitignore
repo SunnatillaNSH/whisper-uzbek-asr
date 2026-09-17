@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+.env
+.ipynb_checkpoints/
+# Trening natijalari va audio (katta fayllar — Drive/HF Hub'da saqlang)
+whisper-*-uz/
+checkpoint-*/
+data/audio/
+data/*.csv
+!data/train.csv.example
+*.wav
+*.mp3
+*.m4a

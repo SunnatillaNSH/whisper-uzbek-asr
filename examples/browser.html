@@ -1,0 +1,26 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>Uzbek Whisper ASR — brauzer misoli</title>
+<input id="url" placeholder="https://xxxx.ngrok-free.app" size="45" />
+<input type="file" id="audio" accept="audio/*" />
+<button onclick="send()">Transkripsiya</button>
+<pre id="out"></pre>
+<script>
+  async function send() {
+    const API_URL = document.getElementById("url").value.replace(/\/$/, "");
+    const file = document.getElementById("audio").files[0];
+    if (!API_URL || !file) return alert("URL va audio fayl kiriting");
+
+    const form = new FormData();
+    form.append("file", file, file.name);
+
+    const res = await fetch(`${API_URL}/transcribe`, {
+      method: "POST",
+      headers: { "ngrok-skip-browser-warning": "true" },
+      body: form,
+    });
+    const data = await res.json();
+    document.getElementById("out").textContent =
+      data.status === "success" ? data.text : "Xato: " + data.message;
+  }
+</script>

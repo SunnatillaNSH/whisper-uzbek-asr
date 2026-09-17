@@ -1,0 +1,17 @@
+# Fine-tuning
+transformers>=4.46
+datasets
+accelerate
+evaluate
+jiwer
+librosa
+soundfile
+torch
+
+# API
+fastapi
+uvicorn[standard]
+python-multipart
+pyngrok
+nest_asyncio
+requests
