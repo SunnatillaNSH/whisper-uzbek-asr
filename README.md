@@ -7,19 +7,25 @@
 ## Tezkor boshlash
 
 1. Yuqoridagi **Open in Colab** tugmasini bosing.
-2. `Runtime → Change runtime type → T4 GPU` tanlang.
+2. `Runtime → Change runtime type` — **A100 GPU** tanlang (T4 ham ishlaydi, lekin sekinroq; pastdagi sozlamalarni moslashtiring).
 3. Colab **Secrets** (🔑) ga `NGROK_AUTH_TOKEN` qo'shing.
-4. Katakchalarni yuqoridan pastga ishga tushiring — dataset avtomatik yuklanadi (pastga qarang), token/login shart emas.
+4. Katakchalarni yuqoridan pastga ishga tushiring — barcha datasetlar avtomatik yuklanadi (pastga qarang), token/login shart emas.
 
-## Dataset — Mozilla Common Voice (o'zbek)
+## Dataset — 7 ta ochiq o'zbekcha manba birlashtirilgan
 
-Notebook 1.1-bo'limda [`yakhyo/mozilla-common-voice-uzbek`](https://huggingface.co/datasets/yakhyo/mozilla-common-voice-uzbek) datasetini **avtomatik** yuklaydi — bu Mozilla Common Voice loyihasining o'zbekcha qismi, Hugging Face'da ochiq (login/token shart emas):
+Notebook 1.1-bo'limda quyidagi manbalarni **avtomatik** yuklab, birlashtiradi (barchasi Hugging Face'da ochiq, login/token shart emas):
 
-- `validated` split — odamlar tomonidan tasdiqlangan yozuvlar (~86 ming qator)
-- Sifat filtri (`up_votes >= 1`, `down_votes == 0`) va `MAX_SAMPLES` (standart: 8000) orqali hajm cheklanadi
-- Audio `.wav` (16 kHz) sifatida `/content/data/audio/` ga, transkriptlar `/content/data/train.csv` ga yoziladi
+| Manba | Cheklov |
+|---|---:|
+| [`yakhyo/mozilla-common-voice-uzbek`](https://huggingface.co/datasets/yakhyo/mozilla-common-voice-uzbek) | 8 000 |
+| [`DavronSherbaev/uzbekvoice-filtered`](https://huggingface.co/datasets/DavronSherbaev/uzbekvoice-filtered) | 20 000 |
+| [`mrmuminov/uzbek_voice`](https://huggingface.co/datasets/mrmuminov/uzbek_voice) | 30 000 |
+| [`shunyalabs/uzbek-speech-dataset`](https://huggingface.co/datasets/shunyalabs/uzbek-speech-dataset) | hammasi (~2 943) |
+| [`islomov/news_youtube_uzbek_speech_dataset`](https://huggingface.co/datasets/islomov/news_youtube_uzbek_speech_dataset) | 15 000 |
+| [`islomov/it_youtube_uzbek_speech_dataset`](https://huggingface.co/datasets/islomov/it_youtube_uzbek_speech_dataset) | 10 000 |
+| [`BoburAmirov/podcasts_tashkent_dialect_youtube_uzbek_speech_dataset`](https://huggingface.co/datasets/BoburAmirov/podcasts_tashkent_dialect_youtube_uzbek_speech_dataset) | hammasi (~14 547) |
 
-`MAX_SAMPLES` ni oshirsangiz sifat yaxshilanadi, trening vaqti uzayadi. Litsenziya: Common Voice yozuvlari CC0 (public domain) ostida tarqatiladi.
+Jami cheklov bo'yicha ~100 000 namuna. Har biri avtomatik yuklanadi, sifat filtri (up/down vote, mavjud bo'lsa) va bo'sh matnli qatorlarni chiqarib tashlash qo'llaniladi, audio `.wav` (16 kHz) sifatida `/content/data/audio/` ga, transkriptlar `/content/data/train.csv` ga yoziladi. `SOURCES` ro'yxatidagi har bir manbaning cheklovini o'zgartirish mumkin.
 
 **O'z datasetingiz bilan ishlashni istasangiz** (masalan real qo'ng'iroq yozuvlari), 1.1-katakchani o'tkazib yuboring va `train.csv` + `audio/` ni qo'lda tayyorlang — format pastda.
 
@@ -77,18 +83,21 @@ pip install -r requirements.txt
 MODEL_DIR=/path/to/whisper-large-v3-uz uvicorn app:app --host 0.0.0.0 --port 8000
 ```
 
-## T4 uchun trening sozlamalari (LoRA)
+## Trening sozlamalari (LoRA)
 
 | Parametr | Qiymat |
 |---|---|
 | Model | `whisper-large-v3` (1.5 mlrd parametr) |
-| Usul | LoRA (PEFT) — asosiy model fp16'da muzlatilgan, faqat `q_proj`/`v_proj` adapterlari (~0.3% parametr) o'qitiladi |
+| Usul | LoRA (PEFT) — asosiy model muzlatilgan, faqat `q_proj`/`v_proj` adapterlari (~0.3% parametr) o'qitiladi |
 | LoRA r / alpha / dropout | 32 / 64 / 0.05 |
-| Batch × accum | 2 × 8 = 16 |
-| fp16 + gradient checkpointing | yoqilgan |
-| Learning rate / warmup | 1e-4 / 100 |
-| max_steps / eval_steps | 1500 / 200 |
+| Batch × accum (A100) | 8 × 2 = 16 — T4'da 2 × 8 = 16 ga qaytaring |
+| fp16 (autocast) + gradient checkpointing | yoqilgan |
+| Learning rate / warmup | 1e-4 / 500 |
+| max_steps / eval_steps | 10000 / 500 |
+| Eval baholash | faqat **loss** orqali (predict_with_generate ishlatilmaydi — PEFT bilan mos kelmaydigan ma'lum xato beradi). Yakuniy WER trening tugagach qo'lda hisoblanadi |
 
-To'liq fine-tuning large-v3 uchun T4'ga sig'maydi (optimizator holati ~25 GB talab qiladi) — shuning uchun LoRA ishlatiladi. Trening tugagach adapterlar asosiy modelga birlashtiriladi (`merge_and_unload`) va oddiy Whisper modeli sifatida saqlanadi — `app.py` hech qanday qo'shimcha o'zgarishsiz ishlayveradi.
+To'liq fine-tuning large-v3 uchun T4'ga sig'maydi (optimizator holati ~25 GB talab qiladi) — shuning uchun LoRA ishlatiladi. Trening tugagach adapterlar asosiy modelga birlashtiriladi (`merge_and_unload`), fp16'ga o'tkaziladi va oddiy Whisper modeli sifatida saqlanadi — `app.py` hech qanday qo'shimcha o'zgarishsiz ishlayveradi.
 
-**Vaqt**: `large-v3` `small`ga nisbatan 5-8 baravar sekinroq — T4'da 1500 qadam taxminan 6-10 soat davom etadi. Colab bepul sessiyasi ~12 soatdan keyin uziladi. Uzilsa: `trainer.train(resume_from_checkpoint=True)`. Modelni Drive'ga nusxalash katakchasi notebook ichida bor — uzoq trening uchun buni albatta oching.
+**Vaqt**: A100'da 10000 qadam taxminan 5-6 soat davom etadi (T4'da bir necha baravar sekinroq). Colab Pro sessiyasi ~24 soatgacha, bepul versiya ~12 soatdan keyin uziladi. Uzilsa: `trainer.train(resume_from_checkpoint=True)`. Modelni Drive'ga nusxalash katakchasi notebook ichida bor — uzoq trening uchun buni albatta oching.
+
+**Natija (birinchi urinish, ~23 ming namuna bilan):** WER 34.01%. Aniq/formal nutqda sifat yaxshi, real qo'ng'iroq audiosida (shovqin, tabiiy nutq) sezilarli xatolar bor edi (masalan ism nomuvofiqligi). Sabab topildi va tuzatildi: dataset yig'ish kodida ba'zi manbalarning ko'p qatori matn topilmagani sabab jim tashlab yuborilar edi — endi bu tuzatilgan va diagnostika qo'shilgan (`Yozildi: X | O'tkazib yuborildi: Y`).
