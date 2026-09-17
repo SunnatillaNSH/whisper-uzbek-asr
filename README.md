@@ -93,11 +93,13 @@ MODEL_DIR=/path/to/whisper-large-v3-uz uvicorn app:app --host 0.0.0.0 --port 800
 | Batch × accum (A100) | 8 × 2 = 16 — T4'da 2 × 8 = 16 ga qaytaring |
 | fp16 (autocast) + gradient checkpointing | yoqilgan |
 | Learning rate / warmup | 1e-4 / 500 |
-| max_steps / eval_steps | 10000 / 500 |
+| max_steps / eval_steps | 15000 / 500 |
 | Eval baholash | faqat **loss** orqali (predict_with_generate ishlatilmaydi — PEFT bilan mos kelmaydigan ma'lum xato beradi). Yakuniy WER trening tugagach qo'lda hisoblanadi |
 
 To'liq fine-tuning large-v3 uchun T4'ga sig'maydi (optimizator holati ~25 GB talab qiladi) — shuning uchun LoRA ishlatiladi. Trening tugagach adapterlar asosiy modelga birlashtiriladi (`merge_and_unload`), fp16'ga o'tkaziladi va oddiy Whisper modeli sifatida saqlanadi — `app.py` hech qanday qo'shimcha o'zgarishsiz ishlayveradi.
 
-**Vaqt**: A100'da 10000 qadam taxminan 5-6 soat davom etadi (T4'da bir necha baravar sekinroq). Colab Pro sessiyasi ~24 soatgacha, bepul versiya ~12 soatdan keyin uziladi. Uzilsa: `trainer.train(resume_from_checkpoint=True)`. Modelni Drive'ga nusxalash katakchasi notebook ichida bor — uzoq trening uchun buni albatta oching.
+**Vaqt**: A100'da 15000 qadam taxminan 8-9 soat davom etadi (T4'da bir necha baravar sekinroq). Colab Pro sessiyasi ~24 soatgacha, bepul versiya ~12 soatdan keyin uziladi. Uzilsa: `trainer.train(resume_from_checkpoint=True)`. Modelni Drive'ga nusxalash katakchasi notebook ichida bor — uzoq trening uchun buni albatta oching.
+
+**Har doim toza holatdan boshlash**: notebook boshida ixtiyoriy "0. To'liq tozalash" bo'limi bor — u `/content/data`, saqlangan modelni va HF datasets keshini butunlay o'chiradi, shunda har ishga tushirish 0'dan, oldingi (ehtimol yarim qolgan) holatdan mustaqil boshlanadi. Bu barcha datasetlarni qaytadan yuklashga majbur qiladi (~20-40 daqiqa qo'shimcha), lekin natija har doim ishonchli bo'ladi.
 
 **Natija (birinchi urinish, ~23 ming namuna bilan):** WER 34.01%. Aniq/formal nutqda sifat yaxshi, real qo'ng'iroq audiosida (shovqin, tabiiy nutq) sezilarli xatolar bor edi (masalan ism nomuvofiqligi). Sabab topildi va tuzatildi: dataset yig'ish kodida ba'zi manbalarning ko'p qatori matn topilmagani sabab jim tashlab yuborilar edi — endi bu tuzatilgan va diagnostika qo'shilgan (`Yozildi: X | O'tkazib yuborildi: Y`).
