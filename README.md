@@ -8,9 +8,20 @@
 
 1. Yuqoridagi **Open in Colab** tugmasini bosing.
 2. `Runtime → Change runtime type → T4 GPU` tanlang.
-3. Datasetni `/content/data/` ga yuklang (format pastda).
-4. Colab **Secrets** (🔑) ga `NGROK_AUTH_TOKEN` qo'shing.
-5. Katakchalarni yuqoridan pastga ishga tushiring.
+3. Colab **Secrets** (🔑) ga `NGROK_AUTH_TOKEN` qo'shing.
+4. Katakchalarni yuqoridan pastga ishga tushiring — dataset avtomatik yuklanadi (pastga qarang), token/login shart emas.
+
+## Dataset — Mozilla Common Voice (o'zbek)
+
+Notebook 1.1-bo'limda [`yakhyo/mozilla-common-voice-uzbek`](https://huggingface.co/datasets/yakhyo/mozilla-common-voice-uzbek) datasetini **avtomatik** yuklaydi — bu Mozilla Common Voice loyihasining o'zbekcha qismi, Hugging Face'da ochiq (login/token shart emas):
+
+- `validated` split — odamlar tomonidan tasdiqlangan yozuvlar (~86 ming qator)
+- Sifat filtri (`up_votes >= 1`, `down_votes == 0`) va `MAX_SAMPLES` (standart: 8000) orqali hajm cheklanadi
+- Audio `.wav` (16 kHz) sifatida `/content/data/audio/` ga, transkriptlar `/content/data/train.csv` ga yoziladi
+
+`MAX_SAMPLES` ni oshirsangiz sifat yaxshilanadi, trening vaqti uzayadi. Litsenziya: Common Voice yozuvlari CC0 (public domain) ostida tarqatiladi.
+
+**O'z datasetingiz bilan ishlashni istasangiz** (masalan real qo'ng'iroq yozuvlari), 1.1-katakchani o'tkazib yuboring va `train.csv` + `audio/` ni qo'lda tayyorlang — format pastda.
 
 ## Repo tarkibi
 

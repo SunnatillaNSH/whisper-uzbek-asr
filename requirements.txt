@@ -6,6 +6,7 @@ evaluate
 jiwer
 librosa
 soundfile
+tqdm
 torch
 
 # API
