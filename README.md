@@ -2,7 +2,7 @@
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/SunnatillaNSH/whisper-uzbek-asr/blob/main/notebooks/whisper_uzbek_finetune_colab.ipynb)
 
-`openai/whisper-small` modelini o'zbek tili uchun Google Colab (T4 GPU) da fine-tune qilish, uni FastAPI orqali `POST /transcribe` API sifatida ishga tushirish va ngrok orqali tashqi loyihalarga ulash uchun to'liq pipeline.
+`openai/whisper-large-v3` (eng kuchli Whisper modeli) ni o'zbek tili uchun Google Colab (T4 GPU) da **LoRA (PEFT)** yordamida fine-tune qilish, uni FastAPI orqali `POST /transcribe` API sifatida ishga tushirish va ngrok orqali tashqi loyihalarga ulash uchun to'liq pipeline.
 
 ## Tezkor boshlash
 
@@ -74,17 +74,21 @@ API_URL=https://xxxx.ngrok-free.app node examples/client.js audio.wav
 
 ```bash
 pip install -r requirements.txt
-MODEL_DIR=/path/to/whisper-small-uz uvicorn app:app --host 0.0.0.0 --port 8000
+MODEL_DIR=/path/to/whisper-large-v3-uz uvicorn app:app --host 0.0.0.0 --port 8000
 ```
 
-## T4 uchun trening sozlamalari
+## T4 uchun trening sozlamalari (LoRA)
 
 | Parametr | Qiymat |
 |---|---|
-| Model | `whisper-small` (`medium` uchun batch 4, accum 4) |
-| Batch × accum | 8 × 2 = 16 |
+| Model | `whisper-large-v3` (1.5 mlrd parametr) |
+| Usul | LoRA (PEFT) — asosiy model fp16'da muzlatilgan, faqat `q_proj`/`v_proj` adapterlari (~0.3% parametr) o'qitiladi |
+| LoRA r / alpha / dropout | 32 / 64 / 0.05 |
+| Batch × accum | 2 × 8 = 16 |
 | fp16 + gradient checkpointing | yoqilgan |
-| Learning rate / warmup | 1e-5 / 100 |
-| max_steps / eval_steps | 2000 / 250 |
+| Learning rate / warmup | 1e-4 / 100 |
+| max_steps / eval_steps | 1500 / 200 |
 
-Colab uzilsa: `trainer.train(resume_from_checkpoint=True)`. Modelni Drive'ga nusxalash katakchasi notebook ichida bor.
+To'liq fine-tuning large-v3 uchun T4'ga sig'maydi (optimizator holati ~25 GB talab qiladi) — shuning uchun LoRA ishlatiladi. Trening tugagach adapterlar asosiy modelga birlashtiriladi (`merge_and_unload`) va oddiy Whisper modeli sifatida saqlanadi — `app.py` hech qanday qo'shimcha o'zgarishsiz ishlayveradi.
+
+**Vaqt**: `large-v3` `small`ga nisbatan 5-8 baravar sekinroq — T4'da 1500 qadam taxminan 6-10 soat davom etadi. Colab bepul sessiyasi ~12 soatdan keyin uziladi. Uzilsa: `trainer.train(resume_from_checkpoint=True)`. Modelni Drive'ga nusxalash katakchasi notebook ichida bor — uzoq trening uchun buni albatta oching.
