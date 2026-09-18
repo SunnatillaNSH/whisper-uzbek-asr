@@ -1,0 +1,343 @@
+#!/usr/bin/env python3
+"""Whisper large-v3 ni REAL QO'NG'IROQLARGA moslash (RunPod Pod).
+
+`train.py` dan farqi: u ochiq HF datasetlarida o'zbek TILINI o'rgatadi, bu esa
+o'z qo'ng'iroqlaringizda telefon DOMENIGA moslaydi.
+
+Round 1-2 eval WER'ni 34.01% → 27.82% ga tushirdi, lekin real qo'ng'iroqda
+sezilarli yaxshilanish bermadi — sabab til bilimi emas, domen farqi: ochiq
+datasetlar toza va mikrofonga yaqin, qo'ng'iroq esa 8 kHz, siqilgan, shovqinli.
+
+Ma'lumot: `scripts/prepare_calls_for_colab.py` tayyorlagan `calls-colab.tar`
+(941 train + 81 eval namuna, 6.5 soat). Pod'ga ko'chirish uchun README'ga qarang.
+
+Ishga tushirish:
+    pip install -r requirements-train.txt
+    python train_calls.py
+
+Sozlash (muhit o'zgaruvchilari, standart qiymatlar qavsda):
+    CALLS_DIR=/workspace/calls    MAX_STEPS=3000   BATCH_SIZE=8   LR=5e-5
+    USE_PODCAST=0                 OUTPUT_DIR=/workspace/whisper-uz-calls
+"""
+
+import os
+import sys
+import tarfile
+
+import numpy as np
+import pandas as pd
+import torch
+from dataclasses import dataclass
+from typing import Any, Dict, List
+
+from datasets import Audio, Dataset, concatenate_datasets, load_dataset
+from peft import LoraConfig, get_peft_model
+from scipy.signal import butter, lfilter, resample_poly
+from transformers import (
+    Seq2SeqTrainer,
+    Seq2SeqTrainingArguments,
+    TrainerCallback,
+    WhisperForConditionalGeneration,
+    WhisperProcessor,
+)
+
+# ──────────────────────────── Sozlamalar ────────────────────────────
+
+def env(name, default, cast=str):
+    return cast(os.environ.get(name, default))
+
+MODEL_NAME = env("MODEL_NAME", "Sunnat0091/whisper-large-v3-uz")
+# Round-2 modelidan boshlaymiz, bazadan emas: o'zbek tili unda allaqachon bor,
+# shuning uchun 3000 qadamning hammasi domenga ketadi.
+
+CALLS_DIR  = env("CALLS_DIR", "/workspace/calls")
+CALLS_TAR  = env("CALLS_TAR", "/workspace/calls-colab.tar")
+OUTPUT_DIR = env("OUTPUT_DIR", "/workspace/whisper-uz-calls")
+
+LANGUAGE, TASK, SR = "uzbek", "transcribe", 16000
+MAX_LABEL = 448
+
+MAX_STEPS   = env("MAX_STEPS", "3000", int)
+EVAL_STEPS  = env("EVAL_STEPS", "250", int)
+SAVE_STEPS  = env("SAVE_STEPS", "250", int)
+WARMUP      = env("WARMUP_STEPS", "200", int)
+BATCH_SIZE  = env("BATCH_SIZE", "8", int)      # A40/L40S 48 GB → 16 ham bo'ladi
+GRAD_ACCUM  = env("GRAD_ACCUM", "1", int)
+LR          = env("LR", "5e-5", float)
+WORKERS     = env("DATALOADER_WORKERS", "6", int)
+
+LORA_R       = env("LORA_R", "32", int)
+LORA_ALPHA   = env("LORA_ALPHA", "64", int)
+LORA_DROPOUT = env("LORA_DROPOUT", "0.05", float)
+
+# Podkast qo'shish (0 = faqat qo'ng'iroq). Qo'shilsa overfitting xavfi kamayadi,
+# lekin domen diqqati susayadi va yuklab olish vaqt oladi.
+USE_PODCAST = env("USE_PODCAST", "0", int)
+POD_ID = "BoburAmirov/podcasts_tashkent_dialect_youtube_uzbek_speech_dataset"
+CALL_RATIO = env("CALL_RATIO", "0.35", float)
+
+AUG_PROB      = env("AUG_PROB", "0.75", float)       # podkast uchun
+CALL_AUG_PROB = env("CALL_AUG_PROB", "0.6", float)   # qo'ng'iroq uchun
+
+# ──────────────────────────── Augmentatsiya ────────────────────────────
+
+_B, _A = butter(4, [300 / (SR / 2), 3400 / (SR / 2)], btype="band")
+_SPEED = [(19, 20), (21, 20), (39, 40), (41, 40)]     # ±5% va ±2.5%
+MAX_AUDIO_SAMPLES = 30 * SR      # Whisper encoder oynasi
+
+
+def mulaw(x, mu=255.0):
+    """G.711 μ-law: siqish → 8 bitga kvantlash → yozish. Telefon kodegi."""
+    y = np.sign(x) * np.log1p(mu * np.abs(x)) / np.log1p(mu)
+    y = np.round(y * 127.0) / 127.0
+    return np.sign(y) * ((1 + mu) ** np.abs(y) - 1) / mu
+
+
+def phone_augment(x, rng):
+    """Toza (podkast) audioni telefon kanalidan o'tkazilgandek qiladi.
+
+    TARTIB MUHIM: shovqin ham, kodek ham 8 kHz oqimning ICHIDA ishlaydi. Shovqin
+    16 kHz'da, qayta namunalashdan keyin qo'shilsa, u 4 kHz'dan yuqorida ham
+    energiya qoldiradi — haqiqiy telefon audiosida u yerda hech narsa yo'q, va
+    model shu soxta belgini "telefon audiosi" deb o'rganib oladi.
+    """
+    x = lfilter(_B, _A, x).astype(np.float32)      # 300-3400 Hz polosa
+    x8 = resample_poly(x, 1, 2)                    # 16 kHz → 8 kHz (tarmoq)
+    if rng.random() < 0.7:                         # liniya shovqini
+        snr = rng.uniform(12, 30)
+        p = np.mean(x8 ** 2) + 1e-12
+        x8 = x8 + rng.normal(0, np.sqrt(p / (10 ** (snr / 10))), len(x8))
+    if rng.random() < 0.5:                         # G.711
+        x8 = mulaw(np.clip(x8, -1, 1))
+    x = resample_poly(x8, 2, 1).astype(np.float32)  # 8 kHz → 16 kHz
+    return np.clip(x * rng.uniform(0.6, 1.2), -1, 1).astype(np.float32)
+
+
+def light_augment(x, rng):
+    """Qo'ng'iroq uchun yengil augmentatsiya.
+
+    Polosa cheklovi va kodek QO'LLANMAYDI — qo'ng'iroq allaqachon telefon
+    audiosi. Maqsad boshqa: 941 namunada ~25 epoxa aylanayotganda modelning
+    aynan shu yozuvlarni yodlab olishiga to'sqinlik qilish. Tezlikni
+    o'zgartirish — ASR'da klassik usul.
+    """
+    if rng.random() < 0.5:
+        num, den = _SPEED[rng.integers(len(_SPEED))]
+        # Sekinlatish audioni UZAYTIRADI. 30 soniyaga yaqin namuna oshib ketsa,
+        # Whisper uni kesadi, matn esa to'liq qoladi — model "eshitilmagan"
+        # so'zlarni o'ylab topishga o'rganadi. Shuning uchun faqat sig'sa.
+        if len(x) * num / den <= MAX_AUDIO_SAMPLES:
+            x = resample_poly(x, num, den).astype(np.float32)
+    if rng.random() < 0.5:
+        snr = rng.uniform(18, 35)
+        p = np.mean(x ** 2) + 1e-12
+        x = x + rng.normal(0, np.sqrt(p / (10 ** (snr / 10))), len(x))
+    return np.clip(x * rng.uniform(0.7, 1.15), -1, 1).astype(np.float32)
+
+
+# ──────────────────────────── Dataset ────────────────────────────
+
+def load_calls():
+    """calls-colab.tar / CALLS_DIR dan train va eval to'plamlarini o'qiydi."""
+    if not os.path.exists(os.path.join(CALLS_DIR, "train.csv")):
+        if not os.path.exists(CALLS_TAR):
+            sys.exit(f"Topilmadi: {CALLS_DIR}/train.csv va {CALLS_TAR}.\n"
+                     f"Qo'ng'iroq datasetini Pod'ga ko'chiring (README'ga qarang).")
+        print(f"📦 {CALLS_TAR} ochilmoqda → {CALLS_DIR}", flush=True)
+        os.makedirs(CALLS_DIR, exist_ok=True)
+        with tarfile.open(CALLS_TAR) as t:
+            t.extractall(CALLS_DIR)
+
+    out = []
+    for name in ("train.csv", "eval.csv"):
+        df = pd.read_csv(os.path.join(CALLS_DIR, name))
+        df["audio"] = df["path"].apply(lambda p: os.path.join(CALLS_DIR, p))
+        missing = [p for p in df["audio"] if not os.path.exists(p)]
+        if missing:
+            sys.exit(f"{name}: {len(missing)} ta audio fayl yo'q, masalan {missing[0]}")
+        out.append(df[["audio", "sentence"]].reset_index(drop=True))
+    return out
+
+
+def to_ds(df, is_call):
+    d = Dataset.from_pandas(df).cast_column("audio", Audio(sampling_rate=SR))
+    return d.add_column("is_call", [is_call] * len(d))
+
+
+def load_podcast():
+    ds = load_dataset(POD_ID, split="train")
+    acol = next(n for n, f in ds.features.items() if isinstance(f, Audio))
+    if acol != "audio":
+        ds = ds.rename_column(acol, "audio")
+    tcol = next(c for c in ("text", "sentence", "transcript") if c in ds.column_names)
+    ds = ds.map(lambda x: {"sentence": str(x[tcol]).strip()},
+                remove_columns=[c for c in ds.column_names if c != "audio"])
+    ds = ds.filter(lambda x: len(x["sentence"]) >= 5)
+    ds = ds.cast_column("audio", Audio(sampling_rate=SR))
+    return ds.add_column("is_call", [0] * len(ds))
+
+
+# ──────────────────────────── Collator ────────────────────────────
+
+@dataclass
+class CallCollator:
+    """Mel-spektrogrammani joyida hisoblaydi va augmentatsiyani qo'llaydi.
+
+    Trainer train va eval uchun BITTA collator ishlatadi, shuning uchun farq
+    `is_call` belgisi orqali qilinadi:
+        0 = podkast      → to'liq telefon augmentatsiyasi
+        1 = qo'ng'iroq   → yengil augmentatsiya
+        2 = eval         → augmentatsiya YO'Q (o'lchov toza bo'lishi kerak)
+    """
+
+    processor: Any
+    decoder_start_token_id: int
+
+    def __call__(self, features: List[Dict[str, Any]]) -> Dict[str, torch.Tensor]:
+        rng = np.random.default_rng()
+        audios = []
+        for f in features:
+            a = np.asarray(f["audio"]["array"], dtype=np.float32)
+            if f["is_call"] == 0 and rng.random() < AUG_PROB:
+                a = phone_augment(a, rng)
+            elif f["is_call"] == 1 and rng.random() < CALL_AUG_PROB:
+                a = light_augment(a, rng)
+            audios.append(a)
+
+        batch = self.processor.feature_extractor(audios, sampling_rate=SR, return_tensors="pt")
+        labels_batch = self.processor.tokenizer.pad(
+            [{"input_ids": f["labels"]} for f in features], return_tensors="pt")
+        labels = labels_batch["input_ids"].masked_fill(labels_batch.attention_mask.ne(1), -100)
+        if (labels[:, 0] == self.decoder_start_token_id).all().cpu().item():
+            labels = labels[:, 1:]
+        batch["labels"] = labels
+        return batch
+
+
+class ProgressCallback(TrainerCallback):
+    """Har EVAL_STEPS da tezlik va tugash vaqtini chiqaradi (Pod narxi uchun)."""
+
+    def on_train_begin(self, args, state, control, **kw):
+        import time
+        self.time = time
+        self.t0 = time.time()
+
+    def on_step_end(self, args, state, control, **kw):
+        s = state.global_step
+        if s % EVAL_STEPS or s == 0:
+            return
+        el = self.time.time() - self.t0
+        per = el / s
+        print(f"  ⏱  {s}/{MAX_STEPS} | {per:.2f} s/qadam | o'tdi {el/60:.0f} daq"
+              f" | qoldi ~{per*(MAX_STEPS-s)/60:.0f} daq", flush=True)
+
+
+# ──────────────────────────── Asosiy ────────────────────────────
+
+def main():
+    resume = "--resume" in sys.argv
+    gpu = torch.cuda.get_device_name(0) if torch.cuda.is_available() else "YO'Q"
+    print(f"GPU        : {gpu}")
+    print(f"Model      : {MODEL_NAME}")
+    print(f"Chiqish    : {OUTPUT_DIR}")
+    print(f"Qadamlar   : {MAX_STEPS} | Batch {BATCH_SIZE}x{GRAD_ACCUM} | LR {LR}")
+
+    processor = WhisperProcessor.from_pretrained(MODEL_NAME, language=LANGUAGE, task=TASK)
+
+    # --- Ma'lumot (modelni yuklashdan OLDIN: GPU band bo'lsa .map qotib qoladi) ---
+    train_df, eval_df = load_calls()
+    calls_tr, calls_ev = to_ds(train_df, 1), to_ds(eval_df, 2)
+    print(f"Qo'ng'iroq : {len(calls_tr)} train | {len(calls_ev)} eval")
+
+    if USE_PODCAST:
+        pod = load_podcast()
+        R = max(1, round(CALL_RATIO * len(pod) / ((1 - CALL_RATIO) * len(calls_tr))))
+        train_ds = concatenate_datasets([calls_tr] * R + [pod]).shuffle(seed=42)
+        print(f"Podkast    : {len(pod)} | takrorlash x{R} | "
+              f"jami {len(train_ds)} ({R*len(calls_tr)/len(train_ds):.0%} qo'ng'iroq)")
+    else:
+        train_ds = calls_tr.shuffle(seed=42)
+        print(f"Jami train : {len(train_ds)} (100% qo'ng'iroq)")
+
+    def tok(b):
+        ids = processor.tokenizer(b["sentence"]).input_ids
+        return {"labels": ids, "llen": len(ids)}
+
+    train_ds = train_ds.map(tok, remove_columns=["sentence"], desc="Tokenlashtirish")
+    calls_ev = calls_ev.map(tok, remove_columns=["sentence"], desc="Tokenlashtirish (eval)")
+    before = len(train_ds)
+    train_ds = train_ds.filter(lambda n: n <= MAX_LABEL, input_columns=["llen"]).remove_columns(["llen"])
+    calls_ev = calls_ev.filter(lambda n: n <= MAX_LABEL, input_columns=["llen"]).remove_columns(["llen"])
+    if len(train_ds) < before:
+        print(f"Uzun matn chiqarildi: {before} → {len(train_ds)}")
+
+    epochs = MAX_STEPS * BATCH_SIZE * GRAD_ACCUM / len(train_ds)
+    print(f"Epoxa      : ~{epochs:.1f}")
+    if epochs > 15:
+        print("  ⚠️  Epoxa soni yuqori — yodlab olish (overfitting) xavfi bor.")
+        print("     Eval loss ko'tarilsa, load_best_model_at_end eng yaxshisini tanlaydi.")
+
+    # --- Model ---
+    model = WhisperForConditionalGeneration.from_pretrained(MODEL_NAME).to("cuda")
+    model.generation_config.language = LANGUAGE
+    model.generation_config.task = TASK
+    model.generation_config.forced_decoder_ids = None
+    model.config.forced_decoder_ids = None
+    model.config.use_cache = False
+    model.model.encoder.conv1.register_forward_hook(lambda m, i, o: o.requires_grad_(True))
+    model = get_peft_model(model, LoraConfig(
+        r=LORA_R, lora_alpha=LORA_ALPHA, lora_dropout=LORA_DROPOUT,
+        bias="none", target_modules=["q_proj", "v_proj"]))
+    model.print_trainable_parameters()
+
+    args = Seq2SeqTrainingArguments(
+        output_dir=OUTPUT_DIR,
+        per_device_train_batch_size=BATCH_SIZE,
+        per_device_eval_batch_size=BATCH_SIZE,
+        gradient_accumulation_steps=GRAD_ACCUM,
+        gradient_checkpointing=True,
+        gradient_checkpointing_kwargs={"use_reentrant": False},
+        fp16=True,
+        learning_rate=LR,
+        warmup_steps=WARMUP,
+        max_steps=MAX_STEPS,
+        lr_scheduler_type="linear",
+        eval_strategy="steps",
+        eval_steps=EVAL_STEPS,
+        save_strategy="steps",
+        save_steps=SAVE_STEPS,
+        save_total_limit=3,
+        load_best_model_at_end=True,
+        metric_for_best_model="loss",
+        greater_is_better=False,
+        # predict_with_generate ISHLATILMAYDI — PEFT bilan mos kelmaydi
+        # (generate() autocast'dan tashqarida ishga tushib dtype xatosi beradi).
+        # WER trening tugagach eval_wer.py bilan hisoblanadi.
+        label_names=["labels"],
+        remove_unused_columns=False,
+        logging_steps=25,
+        report_to="none",
+        dataloader_num_workers=WORKERS,
+        push_to_hub=False,
+    )
+
+    trainer = Seq2SeqTrainer(
+        model=model, args=args,
+        train_dataset=train_ds, eval_dataset=calls_ev,
+        data_collator=CallCollator(processor, model.config.decoder_start_token_id),
+        processing_class=processor,
+        callbacks=[ProgressCallback()],
+    )
+
+    print(trainer.train(resume_from_checkpoint=resume or None))
+
+    final = OUTPUT_DIR + "-final"
+    trainer.model.merge_and_unload().half().save_pretrained(final)
+    processor.save_pretrained(final)
+    print(f"\n✅ Saqlandi: {final}")
+    print(f"   WER      : python eval_wer.py {final}")
+    print(f"   HF'ga    : python upload_to_hf.py")
+
+
+if __name__ == "__main__":
+    main()

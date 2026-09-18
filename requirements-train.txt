@@ -11,3 +11,5 @@ jiwer
 librosa
 soundfile
 huggingface_hub
+scipy
+pandas

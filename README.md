@@ -148,7 +148,7 @@ Colab'da sessiya uzilishi, compute unit tugashi va 235 GB disk cheklovi bor. Run
 |---|---|
 | `train.py` | Mustaqil trening skripti (Colab'ga bog'liq emas) |
 | `requirements-train.txt` | Trening kutubxonalari |
-| `eval_wer.py` | Tayyor modelning WER'ini hisoblash |
+| `eval_wer.py` | WER — ochiq datasetda (til bilimi) |
 | `upload_to_hf.py` | Modelni Hugging Face Hub'ga yuklash |
 
 ### Qadamlar
@@ -174,6 +174,88 @@ Colab'da sessiya uzilishi, compute unit tugashi va 235 GB disk cheklovi bor. Run
    MODEL_DIR=/workspace/whisper-large-v3-uz python eval_wer.py
    HF_TOKEN=hf_... HF_REPO=<foydalanuvchi>/whisper-large-v3-uz-v2 python upload_to_hf.py
    ```
+
+### Round 3 — faqat real qo'ng'iroqlar bilan (TAVSIYA ETILADI)
+
+`train.py` ochiq datasetlarda o'zbek **tilini** o'rgatadi. `train_calls.py` esa
+o'z qo'ng'iroqlaringizda telefon **domeniga** moslaydi — round 1–2 dan keyin
+qolgan asosiy muammo aynan shu.
+
+| Fayl | Vazifasi |
+|---|---|
+| `train_calls.py` | Qo'ng'iroqlarda trening (podkast ixtiyoriy) |
+| `eval_calls_wer.py` | WER'ni qo'ng'iroqlarning eval to'plamida o'lchash va modellarni solishtirish |
+
+**1. Datasetni tayyorlang** (lokal Mac'da, bir marta):
+
+```bash
+python3 -m pip install numpy soundfile
+python3 scripts/prepare_calls_for_colab.py
+```
+
+**2. Pod yarating.** Tavsiya: **A40 48 GB (~$0.40/soat)** — 3000 qadam ~2 soat,
+ya'ni jami ~$1. Volume 60 GB yetadi. Template: PyTorch.
+
+**3. Qo'ng'iroq datasetini Pod'ga ko'chiring.** `runpodctl` ikkala tomonda ham
+bor, oraliq xizmat kerak emas:
+
+```bash
+# Mac'da:
+runpodctl send ~/code/whisper-uzbek-asr/data/calls-colab/calls-colab.tar
+```
+
+Chiqqan kodni Pod terminalida ishlating:
+
+```bash
+cd /workspace && runpodctl receive <kod>
+```
+
+Mac'da `runpodctl` yo'q bo'lsa: `brew install runpod/runpodctl/runpodctl`.
+Muqobil yo'l — Pod'ning JupyterLab fayl menejeriga tar faylni sudrab tashlash.
+
+**4. Treningni boshlang:**
+
+```bash
+git clone https://github.com/SunnatillaNSH/whisper-uzbek-asr.git
+cd whisper-uzbek-asr && pip install -r requirements-train.txt
+nohup python train_calls.py > /workspace/train.log 2>&1 &
+tail -f /workspace/train.log
+```
+
+**5. Natijani o'lchang** — yangi model eskisi bilan **bir xil** eval
+to'plamida solishtiriladi:
+
+```bash
+python eval_calls_wer.py
+```
+
+**6. Hugging Face'ga yuklang va Serverless'ni yangilang:**
+
+```bash
+HF_TOKEN=hf_... HF_REPO=<foydalanuvchi>/whisper-large-v3-uz-calls \
+  MODEL_DIR=/workspace/whisper-uz-calls-final python upload_to_hf.py
+```
+
+So'ng `Dockerfile` dagi `HF_MODEL_ID` ni yangi repoga o'zgartirib push qiling —
+RunPod образni o'zi qayta yig'adi.
+
+#### Overfitting haqida
+
+941 namunada 3000 qadam (batch 8) ≈ **25 epoxa**. Fine-tuning uchun odatda 3–10
+epoxa tavsiya etiladi, shuning uchun uchta himoya qo'yilgan:
+
+* `LR=5e-5` — aralash datasetdagi `1e-4` dan past
+* har 250 qadamda eval + `load_best_model_at_end` — eval loss ko'tarila
+  boshlasa, eng yaxshi checkpoint avtomatik tanlanadi
+* yengil augmentatsiya (tezlik ±5%, shovqin, kuchaytirish) — polosa cheklovisiz,
+  chunki qo'ng'iroq allaqachon telefon audiosi
+
+Eval loss 1000–1500 qadamdan keyin ko'tarilsa, bu yodlab olish belgisi —
+`MAX_STEPS` ni kamaytiring yoki `USE_PODCAST=1` bilan qayta ishga tushiring:
+
+```bash
+USE_PODCAST=1 MAX_STEPS=5000 python train_calls.py
+```
 
 ### Sozlamalar (muhit o'zgaruvchilari)
 
