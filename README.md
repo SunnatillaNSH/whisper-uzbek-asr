@@ -76,6 +76,51 @@ API_URL=https://xxxx.ngrok-free.app python examples/client.py audio.wav
 API_URL=https://xxxx.ngrok-free.app node examples/client.js audio.wav
 ```
 
+## RunPod Pod'da trening (Colab o'rniga)
+
+Colab'da sessiya uzilishi, compute unit tugashi va 235 GB disk cheklovi bor. RunPod Pod'da bularning hech biri yo'q — sessiya cheksiz, diskni o'zingiz tanlaysiz.
+
+| Fayl | Vazifasi |
+|---|---|
+| `train.py` | Mustaqil trening skripti (Colab'ga bog'liq emas) |
+| `requirements-train.txt` | Trening kutubxonalari |
+| `eval_wer.py` | Tayyor modelning WER'ini hisoblash |
+| `upload_to_hf.py` | Modelni Hugging Face Hub'ga yuklash |
+
+### Qadamlar
+
+1. **Pod yarating**: RunPod → Pods → Deploy. Tavsiya: **L40S (48 GB, ~$1.09/soat)** yoki **A40 (48 GB, ~$0.49/soat, sekinroq)**. Template: PyTorch. Volume: **100 GB** (`/workspace`).
+2. **Ulaning** (web terminal yoki SSH) va tayyorlang:
+   ```bash
+   git clone https://github.com/SunnatillaNSH/whisper-uzbek-asr.git
+   cd whisper-uzbek-asr
+   pip install -r requirements-train.txt
+   ```
+3. **Ishga tushiring** (uzilishdan himoyalanish uchun `nohup` bilan):
+   ```bash
+   nohup python train.py > /workspace/train.log 2>&1 &
+   tail -f /workspace/train.log
+   ```
+4. **Uzilib qolsa** — checkpoint'lar `/workspace` da qoladi:
+   ```bash
+   python train.py --resume
+   ```
+5. **Baholash va yuklash**:
+   ```bash
+   MODEL_DIR=/workspace/whisper-large-v3-uz python eval_wer.py
+   HF_TOKEN=hf_... HF_REPO=<foydalanuvchi>/whisper-large-v3-uz-v2 python upload_to_hf.py
+   ```
+
+### Sozlamalar (muhit o'zgaruvchilari)
+
+```bash
+MAX_STEPS=10000 BATCH_SIZE=16 GRAD_ACCUM=1 LR=1e-4 python train.py
+```
+
+Standart manbalar — **tabiiy suhbat** nutqi (Toshkent podkastlari + YouTube yangiliklari, ~35 000 namuna). O'qib yozdirilgan datasetlar (Common Voice, UzbekVoice) `train.py` ichidagi `SOURCES` ro'yxatida izohlangan holda turadi.
+
+**Nima uchun aynan shunday:** qo'ng'iroq tahlili uchun tabiiy, erkin suhbat nutqi o'qib yozdirilgan toza nutqdan muhimroq. UzbekVoice va Common Voice — odamlar jumlalarni mikrofonga o'qib bergan yozuvlar; telefon qo'ng'irog'i esa shovqinli, siqilgan va tez. Datasetni kattalashtirish o'zi sifatni oshirmaydi — **mos turdagi** ma'lumot kerak.
+
 ## RunPod Serverless'ga joylashtirish
 
 Colab + ngrok — sinov uchun. Doimiy ishlashi uchun model RunPod Serverless'ga joylashtiriladi: so'rov kelganda konteyner uyg'onadi, bo'sh turganda to'lov yo'q.

@@ -1,0 +1,13 @@
+# RunPod Pod'da trening uchun (torch образ bilan birga keladi, shuning uchun
+# bu yerda yo'q — agar yo'q bo'lsa: pip install torch --index-url
+# https://download.pytorch.org/whl/cu124)
+transformers>=4.46
+datasets
+accelerate
+peft>=0.7
+torchao>=0.16.0
+evaluate
+jiwer
+librosa
+soundfile
+huggingface_hub
