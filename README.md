@@ -85,7 +85,8 @@ Colab + ngrok — sinov uchun. Doimiy ishlashi uchun model RunPod Serverless'ga 
 | `handler.py` | RunPod Serverless handler (FastAPI emas — platforma `handler(job)` funksiyasini chaqiradi) |
 | `Dockerfile` | Konteyner образi; `HF_MODEL_ID` build-arg berilsa, modelni образ ichiga "pishiradi" |
 | `requirements-runpod.txt` | Konteyner kutubxonalari |
-| `examples/runpod_client.py` | Endpoint'ga so'rov yuborish misoli |
+| `examples/runpod_client.py` | Endpoint'ga so'rov yuborish misoli (Python) |
+| `examples/runpod_worker.js` | Cloudflare Worker'dan chaqirish misoli (R2 va to'g'ridan-to'g'ri havola) |
 
 ### Qadamlar
 
