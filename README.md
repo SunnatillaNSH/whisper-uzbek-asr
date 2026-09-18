@@ -76,6 +76,47 @@ API_URL=https://xxxx.ngrok-free.app python examples/client.py audio.wav
 API_URL=https://xxxx.ngrok-free.app node examples/client.js audio.wav
 ```
 
+## RunPod Serverless'ga joylashtirish
+
+Colab + ngrok — sinov uchun. Doimiy ishlashi uchun model RunPod Serverless'ga joylashtiriladi: so'rov kelganda konteyner uyg'onadi, bo'sh turganda to'lov yo'q.
+
+| Fayl | Vazifasi |
+|---|---|
+| `runpod/handler.py` | RunPod Serverless handler (FastAPI emas — platforma `handler(job)` funksiyasini chaqiradi) |
+| `runpod/Dockerfile` | Konteyner образi; `HF_MODEL_ID` build-arg berilsa, modelni образ ichiga "pishiradi" |
+| `runpod/requirements.txt` | Konteyner kutubxonalari |
+| `examples/runpod_client.py` | Endpoint'ga so'rov yuborish misoli |
+
+### Qadamlar
+
+1. **Modelni Hugging Face Hub'ga yuklang** (Colab'da, trening tugagach):
+   ```python
+   from huggingface_hub import HfApi
+   HfApi().create_repo("<foydalanuvchi>/whisper-large-v3-uz", private=True, exist_ok=True)
+   HfApi().upload_folder(folder_path=OUTPUT_DIR, repo_id="<foydalanuvchi>/whisper-large-v3-uz")
+   ```
+2. RunPod → **Serverless → Deploy from a GitHub repository** → shu repo'ni tanlang.
+3. Dockerfile yo'li: `runpod/Dockerfile`, build arg: `HF_MODEL_ID=<foydalanuvchi>/whisper-large-v3-uz`.
+   Model private bo'lsa, RunPod Secrets'ga `HF_TOKEN` qo'shing.
+4. GPU sifatida **T4** tanlang — model fp16'da ~3 GB VRAM oladi, T4 (16 GB) ortig'i bilan yetadi.
+
+### So'rov yuborish
+
+```bash
+export RUNPOD_API_KEY=...
+export RUNPOD_ENDPOINT_ID=...
+python examples/runpod_client.py audio.wav
+```
+
+```bash
+curl -X POST "https://api.runpod.ai/v2/$RUNPOD_ENDPOINT_ID/runsync" \
+  -H "Authorization: Bearer $RUNPOD_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d "{\"input\": {\"audio_base64\": \"$(base64 -i audio.wav)\"}}"
+```
+
+Kirish sifatida `audio_base64` yoki `audio_url` berish mumkin. Javob: `{"status": "success", "text": "...", "duration_sec": ..., "processing_time_sec": ...}`.
+
 ## Serverni Colab'siz ishga tushirish
 
 ```bash

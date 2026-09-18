@@ -1,0 +1,9 @@
+# RunPod Serverless konteyner uchun kutubxonalar
+# (torch alohida, Dockerfile ichida CUDA versiyasi bilan o'rnatiladi)
+runpod
+transformers>=4.46
+soundfile
+librosa
+numpy
+requests
+huggingface_hub
