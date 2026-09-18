@@ -18,3 +18,4 @@ data/calls-dataset/
 data/calls-colab/
 *.flac
 *.tar
+.DS_Store
