@@ -27,7 +27,9 @@ COPY requirements-runpod.txt requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
 # --- Modelni образga joylash (ixtiyoriy, lekin tavsiya etiladi) ---
-ARG HF_MODEL_ID=""
+# Standart qiymat — RunPod UI da build argument berish shart emas.
+# Boshqa model ishlatmoqchi bo'lsangiz, build-arg bilan bekor qilasiz.
+ARG HF_MODEL_ID="Sunnat0091/whisper-large-v3-uz"
 ENV MODEL_DIR=/app/model
 RUN if [ -n "$HF_MODEL_ID" ]; then \
         python -c "from huggingface_hub import snapshot_download; \
