@@ -100,6 +100,10 @@ To'liq fine-tuning large-v3 uchun T4'ga sig'maydi (optimizator holati ~25 GB tal
 
 **Vaqt**: A100'da 6000 qadam taxminan 3-4 soat davom etadi (T4'da bir necha baravar sekinroq). Colab Pro sessiyasi ~24 soatgacha, bepul versiya ~12 soatdan keyin uziladi. Uzilsa: `trainer.train(resume_from_checkpoint=True)`. Modelni Drive'ga nusxalash katakchasi notebook ichida bor — uzoq trening uchun buni albatta oching.
 
-**Har doim toza holatdan boshlash**: notebook boshida ixtiyoriy "0. To'liq tozalash" bo'limi bor — u `/content/data`, saqlangan modelni va HF datasets keshini butunlay o'chiradi, shunda har ishga tushirish 0'dan, oldingi (ehtimol yarim qolgan) holatdan mustaqil boshlanadi. Bu barcha datasetlarni qaytadan yuklashga majbur qiladi (~20-40 daqiqa qo'shimcha), lekin natija har doim ishonchli bo'ladi.
+**Tozalash**: notebook boshida "0. Tozalash" bo'limi bor — u oldingi ishga tushirishdan qolgan audio fayllar, `train.csv` va eski modelni o'chiradi, lekin **yuklab olingan datasetlar keshini saqlab qoladi** (qayta yuklamaslik uchun). Hamma narsani, jumladan keshni ham o'chirish kerak bo'lsa, katakcha ichidagi `WIPE_HF_CACHE` ni `True` qiling. Google Drive'dagi checkpoint'larga hech qachon tegilmaydi.
+
+**Xotira va disk**: mel-spektrogrammalar oldindan hisoblab saqlanmaydi — ular trening paytida, har bir batch uchun data collator ichida joyida hisoblanadi. `whisper-large-v3` uchun bitta namunaning spektrogrammasi ~1.5 MB bo'lgani sababli, ~98 000 namunani oldindan hisoblash ~143 GB disk va juda katta RAM talab qilardi (va "session crashed after using all available RAM" xatosiga olib kelardi). Joyida hisoblash bu muammoni butunlay yo'q qiladi va tezlikka ta'sir qilmaydi.
+
+**Disk xavfsizligi**: dataset yig'ish paytida bo'sh joy `MIN_FREE_DISK_GB` (standart 20 GB) dan pastga tushsa, qolgan manbalar o'tkazib yuboriladi va mavjud namunalar bilan trening davom etadi — "No space left on device" bilan yiqilib qolish o'rniga.
 
 **Natija (birinchi urinish, ~23 ming namuna bilan):** WER 34.01%. Aniq/formal nutqda sifat yaxshi, real qo'ng'iroq audiosida (shovqin, tabiiy nutq) sezilarli xatolar bor edi (masalan ism nomuvofiqligi). Sabab topildi va tuzatildi: dataset yig'ish kodida ba'zi manbalarning ko'p qatori matn topilmagani sabab jim tashlab yuborilar edi — endi bu tuzatilgan va diagnostika qo'shilgan (`Yozildi: X | O'tkazib yuborildi: Y`).
