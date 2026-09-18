@@ -82,9 +82,9 @@ Colab + ngrok — sinov uchun. Doimiy ishlashi uchun model RunPod Serverless'ga 
 
 | Fayl | Vazifasi |
 |---|---|
-| `runpod/handler.py` | RunPod Serverless handler (FastAPI emas — platforma `handler(job)` funksiyasini chaqiradi) |
-| `runpod/Dockerfile` | Konteyner образi; `HF_MODEL_ID` build-arg berilsa, modelni образ ichiga "pishiradi" |
-| `runpod/requirements.txt` | Konteyner kutubxonalari |
+| `handler.py` | RunPod Serverless handler (FastAPI emas — platforma `handler(job)` funksiyasini chaqiradi) |
+| `Dockerfile` | Konteyner образi; `HF_MODEL_ID` build-arg berilsa, modelni образ ichiga "pishiradi" |
+| `requirements-runpod.txt` | Konteyner kutubxonalari |
 | `examples/runpod_client.py` | Endpoint'ga so'rov yuborish misoli |
 
 ### Qadamlar
@@ -96,7 +96,7 @@ Colab + ngrok — sinov uchun. Doimiy ishlashi uchun model RunPod Serverless'ga 
    HfApi().upload_folder(folder_path=OUTPUT_DIR, repo_id="<foydalanuvchi>/whisper-large-v3-uz")
    ```
 2. RunPod → **Serverless → Deploy from a GitHub repository** → shu repo'ni tanlang.
-3. Dockerfile yo'li: `runpod/Dockerfile`, build arg: `HF_MODEL_ID=<foydalanuvchi>/whisper-large-v3-uz`.
+3. Dockerfile yo'li: `/Dockerfile` (repo ildizida), build arg: `HF_MODEL_ID=<foydalanuvchi>/whisper-large-v3-uz`.
    Model private bo'lsa, RunPod Secrets'ga `HF_TOKEN` qo'shing.
 4. GPU sifatida **T4** tanlang — model fp16'da ~3 GB VRAM oladi, T4 (16 GB) ortig'i bilan yetadi.
 

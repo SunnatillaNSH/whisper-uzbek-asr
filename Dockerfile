@@ -2,7 +2,7 @@
 # RunPod Serverless uchun Docker образ
 # ==============================================================
 # Qurish (RunPod "Deploy from a GitHub repository" buni o'zi bajaradi):
-#   docker build -f runpod/Dockerfile \
+#   docker build \
 #     --build-arg HF_MODEL_ID=<sizning-hf-repo>/whisper-large-v3-uz \
 #     -t whisper-uz .
 #
@@ -23,7 +23,7 @@ WORKDIR /app
 # torch (CUDA 12.4 uchun) — pip wheel'i CUDA kutubxonalarini o'zi olib keladi
 RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cu124
 
-COPY runpod/requirements.txt .
+COPY requirements-runpod.txt requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
 # --- Modelni образga joylash (ixtiyoriy, lekin tavsiya etiladi) ---
@@ -36,6 +36,6 @@ RUN if [ -n "$HF_MODEL_ID" ]; then \
         echo "HF_MODEL_ID berilmadi — MODEL_DIR ni network volume'ga yo'naltiring" ; \
     fi
 
-COPY runpod/handler.py .
+COPY handler.py .
 
 CMD ["python", "-u", "handler.py"]
