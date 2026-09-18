@@ -11,6 +11,68 @@
 3. Colab **Secrets** (🔑) ga `NGROK_AUTH_TOKEN` qo'shing.
 4. Katakchalarni yuqoridan pastga ishga tushiring — barcha datasetlar avtomatik yuklanadi (pastga qarang), token/login shart emas.
 
+## Round 3 — real qo'ng'iroqlarga moslash (JORIY BOSQICH)
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/SunnatillaNSH/whisper-uzbek-asr/blob/main/notebooks/whisper_uzbek_calls_round3_colab.ipynb)
+
+Round 1–2 ochiq datasetlarda o'zbek **tilini** o'rgatdi (WER 34.01% → 27.82%),
+lekin real telefon qo'ng'irog'ida sezilarli yaxshilanish bermadi. Sabab — til
+bilimi emas, **domen farqi**: ochiq datasetlar toza va mikrofonga yaqin, qo'ng'iroq
+esa 8 kHz, siqilgan, shovqinli va erkin suhbat.
+
+Round 3 aynan shu farqni yopadi:
+
+| | Round 1–2 | Round 3 |
+|---|---|---|
+| Ma'lumot | ochiq datasetlar | **o'z qo'ng'iroqlari** + podkast |
+| Augmentatsiya | yo'q | **telefon simulyatsiyasi** (8 kHz, G.711 μ-law, shovqin) |
+| Boshlang'ich model | `openai/whisper-large-v3` | round-2 modeli |
+| Eval | aralash ochiq ma'lumot | **faqat real qo'ng'iroqlar** |
+
+### Qadamlar
+
+**1. Datasetni yig'ish** (`cf-call-analyzer` loyihasida, bir marta):
+
+```bash
+node tools/build-asr-dataset.mjs
+```
+
+D1 bazasidagi tayyor Muxlisa transkriptlarini MoyZvonki audio yozuvlariga
+moslaydi → `data/calls-dataset/`.
+
+**2. Whisper uchun tayyorlash** (shu loyihada):
+
+```bash
+pip install numpy soundfile
+python scripts/prepare_calls_for_colab.py
+```
+
+Muxlisa'ga audio 55 soniyalik bo'laklarda yuborilgan, Whisper esa 30 soniyadan
+uzunini qabul qilmaydi — uzunroq namunani berish audioni kesadi, matn esa to'liq
+qoladi va model "eshitilmagan" so'zlarni o'ylab topishga o'rganadi.
+
+Skript uzun namunalarni **jimlik joyidan** kesadi va matnni shu nuqtaga eng yaqin
+**gap chegarasidan** bo'ladi (Muxlisa tinish belgilarini qo'yadi, jimlik esa
+odatda gap oxirida bo'ladi). Ishonch bo'lmasa namuna butunlay chetlatiladi.
+
+Natija: **238 namuna (1.12 soat) → 1022 namuna (6.51 soat)**, `calls-colab.tar` (~286 MB).
+
+**3. Tar faylni Google Drive ildiziga (MyDrive) yuklang.**
+
+**4. Yuqoridagi Colab tugmasini bosing** va katakchalarni ketma-ket ishga tushiring.
+
+### Compute unit budjeti
+
+5000 qadam, A100, batch 8 → **~35 birlik**. Notebook ichidagi budjet hisoblagichi
+har 500 qadamda haqiqiy sarfni va bashoratni chiqaradi. Checkpoint'lar Drive'da
+saqlanadi, shuning uchun birliklar tugab qolsa `RESUME = True` bilan davom ettiriladi.
+
+### ⚠️ Maxfiylik
+
+`data/calls-dataset/` va `data/calls-colab/` — real mijoz suhbatlari.
+`.gitignore` da yopilgan, **hech qachon commit qilinmasin**. Colab'ga ular faqat
+sizning shaxsiy Google Drive'ingiz orqali boradi.
+
 ## Dataset — 7 ta ochiq o'zbekcha manba birlashtirilgan
 
 Notebook 1.1-bo'limda quyidagi manbalarni **avtomatik** yuklab, birlashtiradi (barchasi Hugging Face'da ochiq, login/token shart emas):
@@ -33,7 +95,9 @@ Jami cheklov bo'yicha ~100 000 namuna. Har biri avtomatik yuklanadi, sifat filtr
 
 | Fayl | Vazifasi |
 |---|---|
-| `notebooks/whisper_uzbek_finetune_colab.ipynb` | Asosiy notebook: setup → fine-tuning → API → ngrok |
+| `notebooks/whisper_uzbek_calls_round3_colab.ipynb` | **Round 3**: real qo'ng'iroqlar + telefon augmentatsiyasi |
+| `scripts/prepare_calls_for_colab.py` | Qo'ng'iroq datasetini ≤30 s bo'laklarga bo'ladi |
+| `notebooks/whisper_uzbek_finetune_colab.ipynb` | Round 1–2 notebook: setup → fine-tuning → API → ngrok |
 | `app.py` | FastAPI ilovasi (Colab'dan tashqarida ham ishlaydi: `uvicorn app:app --port 8000`) |
 | `requirements.txt` | Kutubxonalar |
 | `data/train.csv.example` | Dataset formati namunasi |

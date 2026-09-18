@@ -11,3 +11,10 @@ data/*.csv
 *.wav
 *.mp3
 *.m4a
+
+# Real mijoz qo'ng'iroqlari va transkriptlari — HECH QACHON commit qilinmasin.
+# Bu shaxsiy ma'lumot; faqat lokal diskda va Google Drive'da turishi kerak.
+data/calls-dataset/
+data/calls-colab/
+*.flac
+*.tar
