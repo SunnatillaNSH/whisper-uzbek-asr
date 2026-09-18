@@ -88,7 +88,14 @@ def _get_audio_bytes(inp: dict) -> bytes:
         return base64.b64decode(inp["audio_base64"])
 
     if inp.get("audio_url"):
-        resp = requests.get(inp["audio_url"], timeout=120)
+        # User-Agent majburiy: ba'zi saytlar (masalan Wikimedia) kutubxonaning
+        # standart "python-requests/..." UA'sini bloklaydi va 403 qaytaradi.
+        resp = requests.get(
+            inp["audio_url"],
+            timeout=300,
+            headers={"User-Agent": "whisper-uzbek-asr/1.0 (+https://github.com/SunnatillaNSH/whisper-uzbek-asr)"},
+            allow_redirects=True,
+        )
         resp.raise_for_status()
         return resp.content
 
