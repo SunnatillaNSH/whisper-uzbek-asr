@@ -15,6 +15,7 @@ bitta suhbatning bo'laklari ikkala to'plamga bo'linib ketmagan.
 
 import gc
 import os
+import re
 import sys
 
 import jiwer
@@ -32,15 +33,22 @@ DEFAULT_MODELS = [
     os.environ.get("OLD_MODEL", "Sunnat0091/whisper-large-v3-uz"),
 ]
 
-# Tinish belgilari va katta-kichik harf WER'ga ta'sir qilmasligi kerak —
-# bizga so'zlarning to'g'riligi muhim.
-NORM = jiwer.Compose([
-    jiwer.ToLowerCase(),
-    jiwer.RemovePunctuation(),
-    jiwer.RemoveMultipleSpaces(),
-    jiwer.Strip(),
-    jiwer.ReduceToListOfListOfWords(),
-])
+# Normallashtirish qo'lda qilinadi — jiwer'ning transform argumentlari
+# versiyalar orasida nomini o'zgartirgan (truth_transform → reference_transform),
+# bu esa versiyaga bog'liq bo'lib qolishni anglatadi.
+#
+# ENG MUHIMI — APOSTROF. O'zbek lotin yozuvida u harfning bir qismi (o', g').
+# Muxlisa U+2018 (') ishlatadi, Whisper esa U+2019 (') yoki oddiy ASCII (')
+# chiqarishi mumkin. Normallashtirmasak, "to'g'ri" va "to'g'ri" turli so'z
+# hisoblanadi va WER sun'iy ravishda yuqori chiqadi. Shuning uchun barcha
+# apostrof variantlarini bittaga keltiramiz va uni HARF sifatida saqlaymiz.
+APOS = {ord(c): "'" for c in "\u2018\u2019\u02bb\u02bc\u0060\u00b4"}
+
+
+def norm(s):
+    s = str(s).translate(APOS).lower()
+    s = re.sub(r"[^\w\s']", " ", s, flags=re.UNICODE)   # tinish belgilari → bo'shliq
+    return re.sub(r"\s+", " ", s).strip()
 
 
 def load_eval():
@@ -86,9 +94,8 @@ def main():
     for m in models:
         print(f"▶ {m}")
         hyps = transcribe_all(m, df)
-        results[m] = (100 * jiwer.wer(refs, hyps,
-                                      truth_transform=NORM,
-                                      hypothesis_transform=NORM), hyps)
+        results[m] = (100 * jiwer.wer([norm(r) for r in refs],
+                                      [norm(h) for h in hyps]), hyps)
         print(f"  WER: {results[m][0]:.2f}%\n")
 
     print("=" * 60)
