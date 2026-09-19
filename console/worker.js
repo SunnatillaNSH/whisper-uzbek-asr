@@ -157,8 +157,34 @@ const bumpStats = (env, entry, out, failed) => bumpDay(env, (c) => {
   c.queue_sec += entry.queue_sec || 0;
 });
 
-/** Kuzatuv rejimida tokensiz kelgan so'rovlarni sanaydi. */
-const bumpNoToken = (env) => bumpDay(env, (c) => { c.no_token = (c.no_token || 0) + 1; });
+/**
+ * Kuzatuv rejimida tokensiz kelgan so'rovlarni MANBA BO'YICHA sanaydi.
+ *
+ * Nega yagona raqam yetarli emas: kuzatuv paytida o'z tahlil skriptlarimiz
+ * ham tokensiz ketadi va hisoblagichni oshiradi. Yagona son bo'lsa,
+ * "SellUp hali token yubormayaptimi yoki bu bizning skriptmi" — ajratib
+ * bo'lmaydi va API_ENFORCE=1 ni yoqish xavfli bo'lib qoladi.
+ *
+ * Manba User-Agent bo'yicha guruhlanadi. Kardinallik cheklangan: 12 tadan
+ * ortiq turli manba bo'lsa, qolgani "boshqa" ga yig'iladi — aks holda KV
+ * yozuvi cheksiz o'sib ketadi.
+ */
+function sourceKey(req) {
+  const ua = (req.headers.get("user-agent") || "").trim();
+  if (!ua) return "(ua yo'q)";
+  return ua.slice(0, 48);
+}
+
+const bumpNoToken = (env, req) => bumpDay(env, (c) => {
+  c.no_token = (c.no_token || 0) + 1;
+  const by = c.no_token_by || (c.no_token_by = {});
+  const k = sourceKey(req);
+  if (by[k] === undefined && Object.keys(by).length >= 12) {
+    by["boshqa"] = (by["boshqa"] || 0) + 1;
+  } else {
+    by[k] = (by[k] || 0) + 1;
+  }
+});
 
 export default {
   async fetch(req, env, ctx) {
@@ -243,7 +269,7 @@ export default {
       return json({ error: "Kalit kerak yoki noto'g'ri. Authorization: Bearer <kalit>" }, 401);
     }
     if (!auth.ok && auth.gated) {
-      ctx.waitUntil(bumpNoToken(env).catch(() => {}));   // kuzatuv rejimi
+      ctx.waitUntil(bumpNoToken(env, req).catch(() => {}));   // kuzatuv rejimi
     }
 
     let target = null;
