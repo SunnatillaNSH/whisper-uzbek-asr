@@ -106,7 +106,7 @@ PATIENCE    = env("PATIENCE", "4", int)
 # oshsa trening TO'XTAYDI — eng yaxshi nazorat nuqtasi saqlanib qoladi.
 POD_RATE    = env("POD_RATE", "1.10", float)     # $/soat (L40S)
 BUDGET_USD  = env("BUDGET_USD", "5.0", float)
-SETUP_USD   = env("SETUP_USD", "1.0", float)     # tiklash, yuklash, eval, CT2
+SETUP_USD   = env("SETUP_USD", "1.5", float)     # tiklash, yuklash, eval, CT2
 
 LORA_R       = env("LORA_R", "32", int)
 LORA_ALPHA   = env("LORA_ALPHA", "64", int)
