@@ -32,20 +32,38 @@ ROOT = os.path.dirname(OUT)
 # namunadan 546 tasini qamraydigan. Dataset tayyor ko'rinardi, og'irliklari
 # esa boshqa modelning xatolaridan edi. Endi ogohlantirish beradi va
 # BALLAR_ZAXIRASI=1 qo'yilmasa to'xtaydi.
+#
+# OGIRLIKSIZ=1 — og'irlash umuman qilinmaydi. Round 5 shunday o'qitiladi:
+# og'irlashning foydasi hech qachon alohida o'lchanmagan, u gipoteza, va
+# hozirgi ballar qamrovi baribir yetarli emas. Bu rejimda ballar KERAK
+# EMAS, shuning uchun ularning yo'qligi ham xato emas.
+OGIRLIKSIZ = os.environ.get('OGIRLIKSIZ') == '1'
 SAMPLE_WER = f'{OUT}/sample_wer.csv'
-if os.path.exists(SAMPLE_WER):
+if OGIRLIKSIZ and not os.path.exists(SAMPLE_WER):
+    # Ballar yo'q — og'irlash ham, buzuq yorliqlarni chetlash ham bo'lmaydi.
+    print("Og'irliksiz rejim, ballarsiz", file=sys.stderr)
+    scores, BY_PATH = {}, True
+elif OGIRLIKSIZ:
+    # Ballar bor: og'irlash qilinmaydi, lekin eng yuqori 5% WER (ehtimol
+    # buzilgan yorliq) chetlashi SAQLANADI — u faqat chiqaradi, qamrovi
+    # to'liq bo'lmasa ham zarar qilmaydi.
+    print("Og'irliksiz rejim — ballar faqat chetlash uchun", file=sys.stderr)
+    scores = {r['path']: float(r['wer']) for r in csv.DictReader(open(SAMPLE_WER))}
+    BY_PATH = True
+elif os.path.exists(SAMPLE_WER):
     scores = {r['path']: float(r['wer']) for r in csv.DictReader(open(SAMPLE_WER))}
     BY_PATH = True
 else:
     msg = (f"{SAMPLE_WER} yo'q — og'irliklar eski, QO'NG'IROQ darajasidagi "
            f"sample_scores.csv dan olinadi (boshqa sozlamalarda o'lchangan).")
     if os.environ.get('BALLAR_ZAXIRASI') != '1':
-        sys.exit(f"{msg}\nAtayin shuni xohlasangiz: BALLAR_ZAXIRASI=1 python3 {__file__}")
+        sys.exit(f"{msg}\nAtayin shuni xohlasangiz: BALLAR_ZAXIRASI=1 python3 {__file__}\n"
+                 f"Og'irliksiz o'qitish uchun: OGIRLIKSIZ=1 python3 {__file__}")
     print(f"OGOHLANTIRISH: {msg}", file=sys.stderr)
     scores = {r['call_key']: float(r['wer']) for r in csv.DictReader(open(f'{OUT}/sample_scores.csv'))}
     BY_PATH = False
 wers = sorted(scores.values())
-top5 = wers[int(len(wers) * 0.95)] if wers else 1.0
+top5 = wers[int(len(wers) * 0.95)] if wers else float('inf')
 
 # Eval qo'ng'iroqlarini CHETLAYMIZ — aks holda model o'lchov suhbatini
 # treningda ko'radi va WER soxta yaxshi chiqadi.
@@ -134,7 +152,7 @@ for name, rel, cid, dur, txt in iter_samples():
         excluded.append({'path': rel, 'reason': why, 'duration': round(dur, 1), 'cps': round(cps, 1), 'wer': w})
         continue
     # Qiyinroq namuna ko'proq takrorlanadi — model sig'imini adashgan joyiga sarflasin.
-    rep = 1 if w is None or w < 0.30 else 3 if w >= 0.60 else 2
+    rep = 1 if (OGIRLIKSIZ or w is None or w < 0.30) else 3 if w >= 0.60 else 2
     rows.append({'path': rel, 'sentence': txt, 'wer': w, 'duration': round(dur, 1), 'cps': round(cps, 1), 'repeat': rep})
 
 with open(f'{OUT}/train_weighted.csv', 'w', newline='') as f:
@@ -148,6 +166,20 @@ with open(f'{OUT}/excluded.csv', 'w', newline='') as f:
     w = csv.DictWriter(f, fieldnames=['path', 'reason', 'duration', 'cps', 'wer']); w.writeheader(); w.writerows(excluded)
 
 scored = [r for r in rows if r['wer'] is not None]
+
+# Qamrov darvozasi. Fayl MAVJUD bo'lishi yetarli emas: `sample_wer.csv`
+# 1249 namuna uchun mo'ljallangan edi, lekin yurish uzilib 364 tasi qolgan,
+# va qolganlari ro'yxat OXIRI — tasodifiy emas. Bunday ballar bilan
+# og'irlash datasetni qiyinlik bo'yicha emas, manba tartibi bo'yicha
+# qiyshaytiradi. Fayl bor-yo'qligini tekshirish buni ko'rmaydi.
+cov = len(scored) / len(rows) if rows else 0
+if not OGIRLIKSIZ:
+    print(f"Ball qamrovi: {len(scored)}/{len(rows)} ({cov:.0%})", file=sys.stderr)
+if not OGIRLIKSIZ and cov < 0.5 and os.environ.get('BALLAR_ZAXIRASI') != '1':
+    sys.exit(f"Qamrov {cov:.0%} — og'irliklar namunalarning yarmidan kamini\n"
+             f"aks ettiradi va qolgani tasodifiy tanlanmagan bo'lishi mumkin.\n"
+             f"Og'irliksiz o'qitmoqchi bo'lsangiz train_weighted.csv ni\n"
+             f"takrorlarsiz ishlating. Atayin davom etish: BALLAR_ZAXIRASI=1")
 out = {
     'kirgan_namuna': len(rows),
     'chetlangan': len(excluded),
@@ -159,7 +191,7 @@ out = {
     'WER_bahosi_bor': len(scored),
     'takrorlash': {str(k): sum(1 for r in rows if r['repeat'] == k) for k in (1, 2, 3)},
     'WER_mediana': round(median([r['wer'] for r in scored]), 3) if scored else None,
-    'top5_chegara': round(top5, 3),
+    'top5_chegara': round(top5, 3) if wers else None,
 }
 json.dump(out, open(f'{OUT}/dataset_report.json', 'w'), ensure_ascii=False, indent=1)
 print(json.dumps(out, ensure_ascii=False, indent=1))
