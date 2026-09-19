@@ -1,11 +1,20 @@
-# RunPod Pod'da trening uchun (torch образ bilan birga keladi, shuning uchun
-# bu yerda yo'q — agar yo'q bo'lsa: pip install torch --index-url
-# https://download.pytorch.org/whl/cu124)
+# RunPod Pod'da trening uchun. torch obraz bilan birga keladi.
+# Yangi Ubuntu obrazlarida PEP 668 pip'ni bloklaydi — bir martalik
+# konteynerda quyidagicha o'rnating:
+#   pip install --break-system-packages -r requirements-train.txt
+
 transformers>=4.46
 datasets
 accelerate
 peft>=0.7
-torchao>=0.16.0
+# torchao ATAYIB YO'Q. Biz undan foydalanmaymiz, lekin o'rnatilgan bo'lsa
+# transformers uni import qilishga urinadi va versiyalar mos kelmasa yiqiladi:
+#   * Colab (eski torchao 0.10 + yangi peft) → get_peft_model ichida ImportError,
+#     shuning uchun notebook o'zining pip katagida torchao>=0.16.0 ni o'rnatadi
+#   * RunPod PyTorch 2.8 obrazi (yangi torchao + torch 2.8) → teskari xato:
+#     "cannot import name 'ScalingType' from torch.nn.functional"
+# Pod'da eng ishonchli yo'l — uni butunlay olib tashlash:
+#   pip uninstall -y torchao
 evaluate
 jiwer
 librosa
