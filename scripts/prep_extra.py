@@ -45,6 +45,23 @@ def vote_cols(cols):
     return up, dn
 
 
+def find_audio_col(schema):
+    """Audio ustunini topadi — nomi 'audio' bo'lishi SHART EMAS.
+
+    UzbekVoice'da u `path` deb nomlangan va aynan shu meni adashtirdi:
+    kod `audio` ustunini qidirib, 71 620 qatorning hammasini "audio yo'q"
+    deb tashlab yubordi. Shuning uchun nom bo'yicha emas, TUR bo'yicha
+    qidiramiz: HF Audio ustuni parquet'da struct<bytes, path> bo'lib turadi.
+    """
+    import pyarrow as pa
+    for name, typ in zip(schema.names, schema.types):
+        if pa.types.is_struct(typ):
+            fields = {f.name for f in typ}
+            if "bytes" in fields:
+                return name
+    return None
+
+
 def iter_parquet(repo_id, split, n_shards):
     """Parquet shard'larini birma-bir yuklab, yozuvlarni qaytaradi."""
     import io
@@ -62,10 +79,13 @@ def iter_parquet(repo_id, split, n_shards):
         print(f"  yuklanmoqda {fn}", flush=True)
         local = hf_hub_download(repo_id, fn, repo_type="dataset")
         tbl = pq.read_table(local)
-        print(f"  {fn}: {tbl.num_rows} qator, ustunlar {tbl.column_names}", flush=True)
+        acol = find_audio_col(tbl.schema)
+        if acol is None:
+            sys.exit(f"{fn} da audio ustuni topilmadi. Ustunlar: {tbl.column_names}")
+        print(f"  {fn}: {tbl.num_rows} qator | audio ustuni: {acol!r}", flush=True)
         for batch in tbl.to_batches(max_chunksize=256):
             for row in batch.to_pylist():
-                au = row.get("audio")
+                au = row.pop(acol, None)
                 # Parquet'da audio {bytes, path}; uni massivga aylantiramiz,
                 # shunda qolgan kod oqim rejimidagi bilan bir xil ishlaydi.
                 if isinstance(au, dict) and au.get("bytes"):
