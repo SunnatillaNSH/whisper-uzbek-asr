@@ -71,3 +71,22 @@ analysis/*
 # Repo ochiq, shuning uchun ular hech qachon chiqmasligi kerak.
 analysis/FINAL_COMPARISON.md
 analysis/final_samples.json
+
+# ============================================================
+# data/ — STANDART HOLDA YOPIQ, ruxsat alohida beriladi.
+#
+# Yuqoridagi qoidalar papkalarni BIRMA-BIR sanaydi va shu sababli har safar
+# yangi papka qo'shilganda teshik ochilib qolardi: data/eval120/*.csv aynan
+# shunday paydo bo'ldi va unda real transkriptlar bor edi. Repo ochiq,
+# shuning uchun mantiq teskari bo'lishi kerak — hamma narsa yopiq, faqat
+# ko'rib chiqilgani ochiladi.
+#
+# Ruxsat berishdan oldin faylda transkript, audio yoki CRM identifikatori
+# yo'qligini tekshiring.
+# ============================================================
+data/*
+!data/eval_calls_120.json
+!data/train.csv.example
+
+# Wrangler ishchi fayllari
+.wrangler/
