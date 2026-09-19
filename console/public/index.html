@@ -1,0 +1,898 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="description" content="O'zbek nutqni matnga o'giruvchi endpoint'ni sinash va kuzatish konsoli.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%8E%99%EF%B8%8F</text></svg>">
+<style>
+  :root{color-scheme:light dark}
+  body{margin:0;font:14px system-ui,-apple-system,sans-serif}
+  img{max-width:100%}
+  [hidden]{display:none!important}
+</style>
+<title>Ovoz Konsoli</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+</head>
+<body>
+<style>
+:root{
+  --ground:#F4F6F8; --surface:#FFFFFF; --surface-2:#EDF0F4;
+  --ink:#171A20; --ink-2:#4A515C; --muted:#7A828F;
+  --line:#DCE1E8; --line-2:#C7CED8;
+  --accent:#B9511A; --accent-soft:#FBEDE4;
+  --ok:#1C6E46; --ok-soft:#E4F2EA;
+  --warn:#9A6608; --warn-soft:#FAF0DC;
+  --crit:#A82318; --crit-soft:#FBE9E7;
+  --shadow:0 1px 2px rgba(23,26,32,.06),0 4px 12px rgba(23,26,32,.05);
+}
+@media (prefers-color-scheme:dark){ :root:not([data-theme="light"]){
+  --ground:#101318; --surface:#181C23; --surface-2:#20252E;
+  --ink:#E6E9EE; --ink-2:#AEB6C2; --muted:#7D8695;
+  --line:#2A303A; --line-2:#3A4250;
+  --accent:#E8834A; --accent-soft:#2E1E15;
+  --ok:#5CC28C; --ok-soft:#14261D;
+  --warn:#DCA83C; --warn-soft:#2A2113;
+  --crit:#E8756A; --crit-soft:#2B1614;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 14px rgba(0,0,0,.3);
+}}
+:root[data-theme="dark"]{
+  --ground:#101318; --surface:#181C23; --surface-2:#20252E;
+  --ink:#E6E9EE; --ink-2:#AEB6C2; --muted:#7D8695;
+  --line:#2A303A; --line-2:#3A4250;
+  --accent:#E8834A; --accent-soft:#2E1E15;
+  --ok:#5CC28C; --ok-soft:#14261D;
+  --warn:#DCA83C; --warn-soft:#2A2113;
+  --crit:#E8756A; --crit-soft:#2B1614;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 14px rgba(0,0,0,.3);
+}
+
+*{box-sizing:border-box}
+body{
+  background:var(--ground); color:var(--ink);
+  font-family:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,sans-serif;
+  font-size:15px; line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1180px;margin:0 auto;padding:22px 20px 56px}
+h1,h2,h3{margin:0;text-wrap:balance}
+button,input,select,textarea{font:inherit;color:inherit}
+
+/* ---------- masthead ---------- */
+.mast{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:16px}
+.mast h1{font-size:20px;font-weight:600;letter-spacing:-.01em}
+.mast .sub{color:var(--muted);font-size:13px}
+.mast .sub code{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:12px}
+
+/* ---------- status rail ---------- */
+.rail{
+  display:grid;grid-template-columns:150px minmax(240px,1.4fr) repeat(4,minmax(86px,.7fr));
+  gap:1px;background:var(--line);border:1px solid var(--line);
+  border-radius:8px;overflow:hidden;margin-bottom:20px;
+}
+@media (max-width:900px){
+  /* Ikki ustunda: holat va ishchilar butun kenglikni egallaydi, joblar
+     ikkitadan joylashadi. Aks holda holat yonida bo'sh katak qoladi. */
+  .rail{grid-template-columns:repeat(2,1fr)}
+  .cell.state,.cell.workers{grid-column:1/-1}
+  .cell.state{flex-direction:row;align-items:center;gap:10px}
+}
+.cell{background:var(--surface);padding:11px 13px;display:flex;flex-direction:column;gap:3px}
+
+/* ishchilar: bitta to'plam — jami, ustma-ust chiziq va izoh */
+.cell.workers{gap:7px;justify-content:space-between}
+.wtop{display:flex;align-items:baseline;gap:8px}
+.wtop .v{font-size:19px}
+.wtop .of{font-size:11.5px;color:var(--muted);font-family:"IBM Plex Mono",ui-monospace,monospace}
+.stack{display:flex;height:7px;border-radius:99px;overflow:hidden;background:var(--surface-2);gap:1px}
+.stack span{display:block;min-width:3px;transition:flex-grow .4s ease}
+.stack span.run{background:var(--accent)}
+.stack span.idle{background:var(--ok)}
+.stack span.init{background:var(--warn)}
+.stack span.bad{background:var(--crit)}
+.legend{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:11.5px;color:var(--ink-2)}
+.legend b{font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums;font-weight:600}
+.legend i{width:7px;height:7px;border-radius:2px;display:inline-block;margin-right:5px}
+.legend .dim{color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;white-space:nowrap}
+.cell .k{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.cell .v{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:19px;font-weight:500;font-variant-numeric:tabular-nums;line-height:1.2}
+.cell.state{gap:6px}
+.pill{
+  display:inline-flex;align-items:center;gap:6px;align-self:flex-start;
+  padding:3px 9px 3px 7px;border-radius:99px;font-size:12px;font-weight:600;
+  background:var(--surface-2);color:var(--ink-2);
+}
+.pill::before{content:"";width:7px;height:7px;border-radius:99px;background:currentColor;flex:none}
+.pill.ok{background:var(--ok-soft);color:var(--ok)}
+.pill.warn{background:var(--warn-soft);color:var(--warn)}
+.pill.crit{background:var(--crit-soft);color:var(--crit)}
+.pill.live::before{animation:blip 1.6s ease-in-out infinite}
+@keyframes blip{0%,100%{opacity:1}50%{opacity:.25}}
+@media (prefers-reduced-motion:reduce){.pill.live::before{animation:none}}
+
+/* ---------- panels ---------- */
+.cols{display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:860px){.cols{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow)}
+.panel > h2{
+  font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);
+  font-weight:600;padding:13px 16px 0;
+}
+.body{padding:13px 16px 16px;display:flex;flex-direction:column;gap:13px}
+
+label{display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:var(--ink-2);font-weight:500}
+input[type=text],input[type=password],input[type=url],select,textarea{
+  width:100%;padding:8px 10px;border:1px solid var(--line-2);border-radius:6px;
+  background:var(--ground);font-size:13.5px;
+}
+input[type=text],input[type=password],input[type=url],textarea{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:12.5px}
+textarea{resize:vertical;min-height:54px;line-height:1.5}
+:is(input,select,textarea,button,.drop):focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.seg{display:flex;background:var(--surface-2);border-radius:6px;padding:2px;gap:2px}
+.seg button{
+  flex:1;border:0;background:transparent;padding:6px 8px;border-radius:5px;
+  font-size:12.5px;font-weight:500;color:var(--ink-2);cursor:pointer;
+}
+.seg button[aria-pressed=true]{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+
+.drop{
+  border:1.5px dashed var(--line-2);border-radius:8px;padding:18px 12px;text-align:center;
+  cursor:pointer;background:var(--ground);display:flex;flex-direction:column;gap:3px;
+}
+.drop:hover,.drop.over{border-color:var(--accent);background:var(--accent-soft)}
+.drop .big{font-size:13px;font-weight:600}
+.drop .small{font-size:11.5px;color:var(--muted);font-family:"IBM Plex Mono",ui-monospace,monospace}
+
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.check{flex-direction:row;align-items:center;gap:7px;font-size:12.5px}
+.check input{accent-color:var(--accent);width:15px;height:15px}
+
+.go{
+  border:0;border-radius:7px;background:var(--accent);color:#fff;
+  padding:10px 14px;font-size:14px;font-weight:600;cursor:pointer;width:100%;
+}
+.go:disabled{opacity:.45;cursor:not-allowed}
+.ghost{
+  border:1px solid var(--line-2);background:transparent;color:var(--ink-2);
+  border-radius:6px;padding:5px 10px;font-size:12px;font-weight:500;cursor:pointer;
+}
+.ghost:hover{border-color:var(--accent);color:var(--accent)}
+
+/* ---------- result ---------- */
+.metrics{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));
+  gap:14px;padding-bottom:13px;border-bottom:1px solid var(--line);
+}
+.metric .k{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.metric .v{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:21px;font-weight:500;font-variant-numeric:tabular-nums}
+.metric .v small{font-size:12px;color:var(--muted);font-weight:400;margin-left:2px}
+.metric.hero .v{color:var(--accent);font-size:26px}
+
+.bar{height:5px;border-radius:99px;background:var(--surface-2);overflow:hidden;margin-top:6px}
+.bar i{display:block;height:100%;background:var(--accent);border-radius:99px;transition:width .5s ease}
+
+.transcript{
+  font-size:15px;line-height:1.72;max-width:66ch;white-space:pre-wrap;
+  padding:2px 0;
+}
+.transcript.empty{color:var(--muted);font-style:italic}
+.sample-tag{
+  display:inline-block;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;
+  font-weight:600;color:var(--warn);background:var(--warn-soft);
+  padding:2px 7px;border-radius:4px;
+}
+
+.log{
+  font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:12px;
+  background:var(--surface-2);border-radius:6px;padding:9px 11px;
+  max-height:132px;overflow-y:auto;display:flex;flex-direction:column;gap:2px;
+}
+.log div{color:var(--ink-2)}
+.log div.err{color:var(--crit)}
+
+/* ---------- history ---------- */
+.scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{
+  text-align:left;font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--muted);font-weight:600;padding:0 12px 7px;white-space:nowrap;
+}
+td{padding:9px 12px;border-top:1px solid var(--line);vertical-align:top}
+td.num{font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums;white-space:nowrap}
+td.txt{max-width:440px;color:var(--ink-2);line-height:1.5}
+tr.sample td{opacity:.72}
+.empty-row{color:var(--muted);font-style:italic;padding:18px 12px}
+
+/* ---------- statistika ---------- */
+.range{display:flex;flex-wrap:wrap;gap:12px 18px;align-items:flex-end}
+.range label{flex-direction:column;gap:5px}
+.range input[type=date]{
+  padding:7px 9px;border:1px solid var(--line-2);border-radius:6px;
+  background:var(--ground);font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:12.5px;
+}
+.quick{display:flex;gap:6px;margin-bottom:1px}
+
+/* Kunlik ustunlar. Balandlik eng katta qiymatga nisbatan — o'q yozuvlari
+   ustunlar tagida, ya'ni har bir belgi o'zi nomlagan qiymat ustida turadi. */
+.chart{display:flex;align-items:flex-end;gap:3px;height:132px;padding-top:6px;overflow-x:auto}
+.chart .bar{
+  flex:1;min-width:14px;display:flex;flex-direction:column;justify-content:flex-end;
+  align-items:center;gap:5px;height:100%;
+}
+.chart .bar i{
+  display:block;width:100%;background:var(--accent);border-radius:3px 3px 0 0;
+  min-height:2px;transition:height .4s ease;
+}
+.chart .bar u{
+  font-style:normal;font-family:"IBM Plex Mono",ui-monospace,monospace;
+  font-size:9.5px;color:var(--muted);white-space:nowrap;
+}
+.chart .bar b{
+  font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:10.5px;
+  font-weight:600;color:var(--ink-2);
+}
+.chart .none{color:var(--muted);font-style:italic;font-size:13px;align-self:center}
+
+/* ---------- jonli oqim ---------- */
+.feed{display:flex;flex-direction:column;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.feed:empty{display:none}
+.fitem{background:var(--surface);padding:12px 14px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 16px;align-items:start}
+.fitem .head{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;grid-column:1/-1}
+.fitem .when{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.fitem .nums{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:12px;color:var(--ink-2);font-variant-numeric:tabular-nums;display:flex;gap:12px;flex-wrap:wrap}
+.fitem .nums b{font-weight:600;color:var(--accent)}
+.fitem .said{font-size:14px;line-height:1.65;max-width:72ch;white-space:pre-wrap}
+.fitem .said.none{color:var(--muted);font-style:italic}
+.fitem audio{height:34px;width:230px;max-width:100%}
+.fitem .noaudio{font-size:11.5px;color:var(--muted);font-family:"IBM Plex Mono",ui-monospace,monospace;align-self:center}
+@media (max-width:700px){
+  .fitem{grid-template-columns:minmax(0,1fr)}
+  .fitem audio{width:100%}
+}
+
+.note{font-size:12px;color:var(--muted);line-height:1.6}
+.note b{color:var(--ink-2);font-weight:600}
+.foot{margin-top:22px;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;align-items:center}
+</style>
+
+<div class="wrap">
+
+  <div class="mast">
+    <h1>Ovoz Konsoli</h1>
+    <span class="sub">O'zbek nutqni matnga o'girish · <code>vwobkifazoyyh1</code></span>
+  </div>
+
+  <div class="rail" id="rail">
+    <div class="cell state"><span class="k">Holat</span><span class="pill" id="st">tekshirilmagan</span></div>
+
+    <div class="cell workers">
+      <span class="k">Ishchilar</span>
+      <div class="wtop">
+        <span class="v" id="wTotal">—</span>
+        <span class="of" id="wOf">ko'tarilgan</span>
+      </div>
+      <div class="stack" id="wStack" role="img" aria-label="Ishchilar holati"></div>
+      <div class="legend" id="wLegend"><span class="dim">kalit kiritilmagan</span></div>
+    </div>
+
+    <div class="cell"><span class="k">Navbatda</span><span class="v" id="jQueue">—</span></div>
+    <div class="cell"><span class="k">Bajarilmoqda</span><span class="v" id="jRun">—</span></div>
+    <div class="cell"><span class="k">Bajarilgan</span><span class="v" id="jDone">—</span></div>
+    <div class="cell"><span class="k">Xato</span><span class="v" id="jFail">—</span></div>
+  </div>
+
+  <div class="cols">
+
+    <!-- ============ chap: boshqaruv ============ -->
+    <section class="panel">
+      <h2>So'rov</h2>
+      <div class="body">
+
+        <div id="keyBox" hidden>
+          <label>RunPod API kaliti
+            <input type="password" id="key" placeholder="rpa_..." autocomplete="off" spellcheck="false">
+          </label>
+          <p class="note">Kalit faqat shu brauzerda saqlanadi va bevosita RunPod'ga yuboriladi — boshqa hech qayerga ketmaydi.</p>
+        </div>
+        <p class="note" id="proxyNote" hidden><b>Kalit serverda.</b> U Cloudflare'ning maxfiy xotirasida yotadi va brauzerga yuborilmaydi — shuning uchun bu yerda hech narsa kiritish kerak emas.</p>
+
+        <div class="seg" role="group" aria-label="Audio manbasi">
+          <button type="button" id="mFile" aria-pressed="true">Fayl</button>
+          <button type="button" id="mUrl" aria-pressed="false">Havola</button>
+        </div>
+
+        <div id="paneFile">
+          <div class="drop" id="drop" tabindex="0" role="button" aria-label="Audio fayl tanlash">
+            <span class="big" id="dropBig">Faylni tashlang yoki tanlang</span>
+            <span class="small" id="dropSmall">wav · mp3 · m4a · ogg · flac</span>
+          </div>
+          <input type="file" id="file" accept="audio/*,.wav,.mp3,.m4a,.ogg,.flac,.aac,.opus,.webm" hidden>
+        </div>
+
+        <div id="paneUrl" hidden>
+          <label>Audio havolasi
+            <input type="url" id="url" placeholder="https://.../call.mp3">
+          </label>
+        </div>
+
+        <div class="opts">
+          <label>Beam
+            <select id="beam"><option value="5">5 — aniqroq</option><option value="1">1 — tezroq</option></select>
+          </label>
+          <label>Til
+            <select id="lang"><option value="uz">o'zbek</option><option value="ru">rus</option></select>
+          </label>
+        </div>
+
+        <label class="check"><input type="checkbox" id="vad" checked> Jimlikni olib tashlash (VAD)</label>
+        <label class="check"><input type="checkbox" id="segs"> Vaqt belgilarini qaytarish</label>
+
+        <label>Domen lug'ati
+          <textarea id="hot" spellcheck="false">Face ID, davomat dasturi, xodim, apparat, kontrol, shartnoma, buxgalteriya, oylik to'lov, million so'm, dollar</textarea>
+        </label>
+        <p class="note">Bu atamalar umumiy nutqda kam uchraydi, shuning uchun model ularni tovushi o'xshash so'zlarga almashtiradi. Ro'yxat ularni oldindan kutilgan deb belgilaydi.</p>
+
+        <button class="go" id="send">Transkripsiya qilish</button>
+      </div>
+    </section>
+
+    <!-- ============ o'ng: natija ============ -->
+    <section class="panel">
+      <h2>Natija</h2>
+      <div class="body">
+        <div class="metrics">
+          <div class="metric hero">
+            <div class="k">Tezlik</div>
+            <div class="v" id="mRtf">19.1<small>×</small></div>
+            <div class="bar"><i id="mBar" style="width:64%"></i></div>
+          </div>
+          <div class="metric"><div class="k">Audio</div><div class="v" id="mDur">56.96<small>s</small></div></div>
+          <div class="metric"><div class="k">Ishlov</div><div class="v" id="mProc">2.99<small>s</small></div></div>
+          <div class="metric"><div class="k">Navbat</div><div class="v" id="mQ">24.3<small>s</small></div></div>
+          <div class="metric"><div class="k">Narx</div><div class="v" id="mCost">0.0006<small>$</small></div></div>
+        </div>
+
+        <div id="sampleTag"><span class="sample-tag">Namuna natija</span></div>
+        <div class="transcript" id="text">Sizga ham besh birinchi. Allo. Allo, assalomu alaykum. Vaalaykum assalom. Yaxshimisiz, tuzukmisiz, aka? Ha, rahmat, rahmat. Labbay aka? Ha, telefon bo'lgan ekan, qaytarayapsizmi? Ha, ha, HR plyusdan qaganman davomat dasturidan, aka.</div>
+
+        <div class="log" id="log"><div>Kalitingizni kiriting va audio tanlang — jarayon shu yerda ko'rinadi.</div></div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ============ statistika ============ -->
+  <section class="panel" style="margin-top:20px" id="statPanel" hidden>
+    <h2>Statistika</h2>
+    <div class="body" style="padding-top:10px">
+
+      <div class="range">
+        <label>Dan <input type="date" id="statFrom"></label>
+        <label>Gacha <input type="date" id="statTo"></label>
+        <div class="quick">
+          <button class="ghost" data-days="0">Bugun</button>
+          <button class="ghost" data-days="6">7 kun</button>
+          <button class="ghost" data-days="29">30 kun</button>
+        </div>
+      </div>
+
+      <div class="metrics" id="statTotals">
+        <div class="metric"><div class="k">So'rovlar</div><div class="v">—</div></div>
+      </div>
+
+      <div class="chart" id="statChart"></div>
+      <p class="note" id="statNote">Statistika 120 kun saqlanadi. Jonli oqimdan farqli — u faqat 2 soat.</p>
+    </div>
+  </section>
+
+  <!-- ============ jonli oqim ============ -->
+  <section class="panel" style="margin-top:20px" id="feedPanel" hidden>
+    <h2>Jonli oqim — oxirgi 2 soat</h2>
+    <div class="body" style="padding-top:10px">
+
+      <div id="feedLocked" hidden>
+        <label style="max-width:360px">Oqim kaliti
+          <input type="password" id="feedToken" placeholder="FEED_TOKEN" autocomplete="off" spellcheck="false">
+        </label>
+        <p class="note" style="margin-top:8px">Oqimda real mijoz suhbatlari saqlanadi, shuning uchun u alohida kalit bilan yopilgan. Kalitni bir marta kiriting — brauzeringizda qoladi.</p>
+      </div>
+
+      <div id="feedList" class="feed"></div>
+
+      <div class="foot">
+        <p class="note" id="feedSum">—</p>
+        <button class="ghost" id="feedRefresh">Yangilash</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ tarix ============ -->
+  <section class="panel" style="margin-top:20px">
+    <h2>Shu brauzerdan yuborilganlar</h2>
+    <div class="body" style="padding-top:10px">
+      <div class="scroll">
+        <table>
+          <thead><tr>
+            <th>Vaqt</th><th>Manba</th><th>Audio</th><th>Ishlov</th><th>Tezlik</th><th>Narx</th><th>Matn</th>
+          </tr></thead>
+          <tbody id="hist"></tbody>
+        </table>
+      </div>
+      <div class="foot">
+        <p class="note">Tarix faqat shu brauzerda saqlanadi. <b id="histSum">—</b></p>
+        <button class="ghost" id="clear">Tarixni tozalash</button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+const DIRECT = "https://api.runpod.ai/v2/vwobkifazoyyh1";
+const GPU_PER_SEC = 0.00019;          // 24 GB GPU, RunPod narxi
+const $ = (id) => document.getElementById(id);
+
+/* Sahifa ikki joyda ishlaydi va kalitni har birida boshqacha oladi:
+   PROKSI — Cloudflare Worker ostida. Kalit server tomonida (secret), brauzerga
+            umuman tushmaydi. Sahifa o'z domenidagi /api/* ga murojaat qiladi.
+   TO'G'RIDAN — statik hosting (masalan Artifact). Server yo'q, shuning uchun
+            kalitni foydalanuvchi kiritadi va u faqat shu brauzerda saqlanadi.
+   Qaysi rejimda ekanini /api/health ga bitta so'rov bilan aniqlaymiz. */
+let PROXY = false;
+
+async function detectMode() {
+  try {
+    const r = await fetch("/api/health", { headers: { accept: "application/json" } });
+    if ((r.headers.get("content-type") || "").includes("application/json")) {
+      const d = await r.json().catch(() => null);
+      if (d && (d.workers || d.jobs || d.error)) { PROXY = true; return; }
+    }
+  } catch { /* statik hosting — to'g'ridan-to'g'ri rejim */ }
+  PROXY = false;
+}
+
+const api = {
+  url: (path) => (PROXY ? "/api/" + path : DIRECT + "/" + path),
+  // Proksi rejimida RunPod kaliti kerak emas, lekin API_TOKENS yoqilgan
+  // bo'lsa konsol o'z kaliti (FEED_TOKEN) bilan o'tadi.
+  headers: () => {
+    if (!PROXY) return { Authorization: "Bearer " + $("key").value.trim() };
+    const t = $("feedToken").value.trim();
+    return t ? { Authorization: "Bearer " + t } : {};
+  },
+  ready: () => PROXY || $("key").value.trim().length > 0,
+};
+
+/* ---------- saqlash (faqat shu brauzer) ---------- */
+const store = {
+  get(k, d) { try { const v = localStorage.getItem("ovoz." + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem("ovoz." + k, JSON.stringify(v)); } catch {} },
+};
+
+/* ---------- namuna qator (sahifa bo'sh ko'rinmasligi uchun) ---------- */
+const SAMPLE = [{
+  sample: true, at: "namuna", src: "15398.wav", dur: 56.96, proc: 2.99, rtf: 19.1,
+  text: "Sizga ham besh birinchi. Allo. Allo, assalomu alaykum. Vaalaykum assalom. Yaxshimisiz, tuzukmisiz, aka?",
+}];
+
+let history = store.get("history", []);
+let mode = "file";
+let picked = null;
+
+/* ---------- holat paneli ---------- */
+function setState(cls, txt, live) {
+  const el = $("st");
+  el.className = "pill" + (cls ? " " + cls : "") + (live ? " live" : "");
+  el.textContent = txt;
+}
+
+async function poll() {
+  if (!api.ready()) { setState("", "kalit kiritilmagan"); return; }
+  try {
+    const r = await fetch(api.url("health"), { headers: api.headers() });
+    if (r.status === 401) { setState("crit", "kalit noto'g'ri"); return; }
+    if (r.status === 503) { setState("crit", "server kaliti o'rnatilmagan"); return; }
+    if (!r.ok) { setState("warn", "javob " + r.status); return; }
+    const d = await r.json();
+    if (d.error) { setState("crit", "server kaliti o'rnatilmagan"); return; }
+    const w = d.workers || {}, j = d.jobs || {};
+    renderWorkers(w);
+    $("jQueue").textContent = j.inQueue ?? 0;
+    $("jRun").textContent = j.inProgress ?? 0;
+    $("jDone").textContent = j.completed ?? 0;
+    $("jFail").textContent = j.failed ?? 0;
+    const busy = (w.running ?? 0) > 0 || (j.inQueue ?? 0) > 0;
+    const warming = (w.initializing ?? 0) > 0;
+    if (busy) setState("ok", "ishlayapti", true);
+    else if (warming) setState("warn", "ko'tarilmoqda", true);
+    else setState("ok", "tayyor");
+  } catch {
+    setState("crit", "ulanib bo'lmadi");
+  }
+}
+
+/* RunPod ishchilarni beshta holatda qaytaradi. Ular yig'indisi — ayni
+   damda KO'TARILGAN ishchilar soni; so'rov bo'lmasa RunPod hammasini
+   o'chiradi va bu nol bo'ladi (bo'sh turganda to'lov yo'q). Maksimal
+   chegara /health da qaytarilmaydi — u endpoint sozlamalarida turadi. */
+const W_STATES = [
+  { key: "running",      cls: "run",  label: "ishlamoqda" },
+  { key: "idle",         cls: "idle", label: "bo'sh" },
+  { key: "ready",        cls: "idle", label: "tayyor" },
+  { key: "initializing", cls: "init", label: "ko'tarilmoqda" },
+  { key: "throttled",    cls: "bad",  label: "cheklangan" },
+  { key: "unhealthy",    cls: "bad",  label: "nosoz" },
+];
+
+function renderWorkers(w) {
+  const counts = W_STATES.map((s) => ({ ...s, n: w[s.key] ?? 0 }));
+  const total = counts.reduce((a, c) => a + c.n, 0);
+
+  $("wTotal").textContent = total;
+  $("wOf").textContent = total === 0 ? "so'rov kutilmoqda" : "ko'tarilgan";
+
+  const stack = $("wStack");
+  stack.innerHTML = "";
+  if (total === 0) {
+    stack.setAttribute("aria-label", "Ishchi yo'q");
+  } else {
+    for (const c of counts) {
+      if (!c.n) continue;
+      const seg = document.createElement("span");
+      seg.className = c.cls;
+      seg.style.flexGrow = c.n;
+      seg.title = c.label + ": " + c.n;
+      stack.appendChild(seg);
+    }
+    stack.setAttribute("aria-label", counts.filter((c) => c.n).map((c) => c.label + " " + c.n).join(", "));
+  }
+
+  const shown = counts.filter((c) => c.n > 0);
+  $("wLegend").innerHTML = shown.length
+    ? shown.map((c) => '<span><i class="' + c.cls + '"></i>' + c.label + "&nbsp;<b>" + c.n + "</b></span>").join("")
+    : '<span class="dim">hozir ishchi yo\'q — birinchi so\'rov bittasini ko\'taradi</span>';
+}
+
+/* ---------- log ---------- */
+function log(msg, isErr) {
+  const d = document.createElement("div");
+  if (isErr) d.className = "err";
+  d.textContent = msg;
+  $("log").appendChild(d);
+  $("log").scrollTop = $("log").scrollHeight;
+}
+function clearLog() { $("log").textContent = ""; }
+
+/* ---------- natija ko'rsatish ---------- */
+function showResult(out, queueSec) {
+  const rtf = out.realtime_factor ?? (out.duration_sec && out.processing_time_sec
+    ? out.duration_sec / out.processing_time_sec : null);
+  $("mRtf").innerHTML = (rtf ? rtf.toFixed(1) : "—") + "<small>×</small>";
+  $("mBar").style.width = Math.min(100, ((rtf || 0) / 30) * 100) + "%";
+  $("mDur").innerHTML = (out.duration_sec ?? 0).toFixed(2) + "<small>s</small>";
+  $("mProc").innerHTML = (out.processing_time_sec ?? 0).toFixed(2) + "<small>s</small>";
+  $("mQ").innerHTML = queueSec.toFixed(1) + "<small>s</small>";
+  $("mCost").innerHTML = ((out.processing_time_sec ?? 0) * GPU_PER_SEC).toFixed(4) + "<small>$</small>";
+  $("sampleTag").hidden = true;
+  const t = $("text");
+  t.textContent = out.text || "(bo'sh natija — audioda nutq topilmadi)";
+  t.className = "transcript" + (out.text ? "" : " empty");
+}
+
+/* ---------- tarix ---------- */
+function renderHistory() {
+  const rows = history.length ? history : SAMPLE;
+  $("hist").innerHTML = "";
+  if (!rows.length) {
+    $("hist").innerHTML = '<tr><td colspan="7" class="empty-row">Hali so\'rov yuborilmagan.</td></tr>';
+    return;
+  }
+  for (const r of rows) {
+    const tr = document.createElement("tr");
+    if (r.sample) tr.className = "sample";
+    tr.innerHTML =
+      '<td class="num">' + r.at + "</td>" +
+      "<td>" + esc(r.src) + "</td>" +
+      '<td class="num">' + r.dur.toFixed(1) + " s</td>" +
+      '<td class="num">' + r.proc.toFixed(2) + " s</td>" +
+      '<td class="num">' + r.rtf.toFixed(1) + "×</td>" +
+      '<td class="num">$' + (r.proc * GPU_PER_SEC).toFixed(4) + "</td>" +
+      '<td class="txt">' + esc(r.text.slice(0, 150)) + (r.text.length > 150 ? "…" : "") + "</td>";
+    $("hist").appendChild(tr);
+  }
+  const real = history.length;
+  const secs = history.reduce((a, r) => a + r.proc, 0);
+  $("histSum").textContent = real
+    ? real + " ta so'rov · " + secs.toFixed(1) + " s GPU · $" + (secs * GPU_PER_SEC).toFixed(4)
+    : "Jadvaldagi qator — namuna, o'z so'rovingiz uni almashtiradi.";
+}
+function esc(s) {
+  return String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+}
+
+/* ---------- audio → base64 ---------- */
+async function toBase64(file) {
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  let bin = "";
+  const CH = 0x8000;
+  for (let i = 0; i < bytes.length; i += CH) bin += String.fromCharCode(...bytes.subarray(i, i + CH));
+  return btoa(bin);
+}
+
+/* ---------- asosiy: so'rov yuborish ---------- */
+async function send() {
+  if (!api.ready()) { clearLog(); log("Avval RunPod API kalitini kiriting.", true); return; }
+
+  const input = {
+    language: $("lang").value,
+    beam_size: Number($("beam").value),
+    vad: $("vad").checked,
+    hotwords: $("hot").value.trim(),
+  };
+  if ($("segs").checked) input.segments = true;
+
+  let srcLabel;
+  if (mode === "url") {
+    const u = $("url").value.trim();
+    if (!u) { clearLog(); log("Audio havolasini kiriting.", true); return; }
+    input.audio_url = u;
+    srcLabel = u.split("/").pop() || u;
+  } else {
+    if (!picked) { clearLog(); log("Audio fayl tanlang.", true); return; }
+    clearLog();
+    log("Fayl o'qilmoqda — " + (picked.size / 1048576).toFixed(1) + " MB");
+    input.audio_base64 = await toBase64(picked);
+    srcLabel = picked.name;
+  }
+
+  $("send").disabled = true;
+  if (mode === "url") clearLog();
+  log("Yuborilmoqda…");
+
+  try {
+    const started = Date.now();
+    const r = await fetch(api.url("run"), {
+      method: "POST",
+      headers: { ...api.headers(), "Content-Type": "application/json" },
+      body: JSON.stringify({ input }),
+    });
+    if (r.status === 401) throw new Error("Kalit qabul qilinmadi. RunPod → Settings → API Keys dan yangisini oling.");
+    if (r.status === 503) throw new Error("Server kaliti o'rnatilmagan: npx wrangler secret put RUNPOD_API_KEY --name ovoz-konsoli");
+    if (!r.ok) throw new Error("RunPod javobi " + r.status);
+    const job = await r.json();
+    if (job.error) throw new Error(job.error);
+    log("Job " + job.id);
+
+    let last = "";
+    for (let i = 0; i < 300; i++) {
+      await new Promise((res) => setTimeout(res, 2000));
+      const s = await fetch(api.url("status/" + job.id), { headers: api.headers() });
+      if (!s.ok) throw new Error("Holat so'rovi " + s.status);
+      const d = await s.json();
+      if (d.status !== last) {
+        const el = ((Date.now() - started) / 1000).toFixed(0).padStart(3, " ");
+        log("[" + el + "s] " + d.status + (d.status === "IN_QUEUE" ? "  (sovuq start ~25 s)" : ""));
+        last = d.status;
+      }
+      if (d.status === "COMPLETED") {
+        const out = d.output || {};
+        if (out.status !== "success") throw new Error(out.message || "Noma'lum xato");
+        const qs = (d.delayTime || 0) / 1000;
+        showResult(out, qs);
+        log("Tayyor.");
+        history.unshift({
+          at: new Date().toLocaleTimeString("uz-UZ", { hour: "2-digit", minute: "2-digit" }),
+          src: srcLabel, dur: out.duration_sec || 0, proc: out.processing_time_sec || 0,
+          rtf: out.realtime_factor || 0, text: out.text || "",
+        });
+        history = history.slice(0, 50);
+        store.set("history", history);
+        renderHistory();
+        poll();
+        return;
+      }
+      if (["FAILED", "CANCELLED", "TIMED_OUT"].includes(d.status)) {
+        throw new Error("Job " + d.status + (d.error ? " — " + d.error : ""));
+      }
+    }
+    throw new Error("Vaqt tugadi — 10 daqiqada javob kelmadi.");
+  } catch (e) {
+    log(e.message, true);
+  } finally {
+    $("send").disabled = false;
+  }
+}
+
+/* ---------- ulanishlar ---------- */
+$("key").value = store.get("key", "");
+$("key").addEventListener("input", () => { store.set("key", $("key").value); poll(); });
+$("hot").value = store.get("hot", $("hot").value);
+$("hot").addEventListener("input", () => store.set("hot", $("hot").value));
+
+$("mFile").addEventListener("click", () => setMode("file"));
+$("mUrl").addEventListener("click", () => setMode("url"));
+function setMode(m) {
+  mode = m;
+  $("mFile").setAttribute("aria-pressed", m === "file");
+  $("mUrl").setAttribute("aria-pressed", m === "url");
+  $("paneFile").hidden = m !== "file";
+  $("paneUrl").hidden = m !== "url";
+}
+
+$("drop").addEventListener("click", () => $("file").click());
+$("drop").addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $("file").click(); } });
+$("drop").addEventListener("dragover", (e) => { e.preventDefault(); $("drop").classList.add("over"); });
+$("drop").addEventListener("dragleave", () => $("drop").classList.remove("over"));
+$("drop").addEventListener("drop", (e) => {
+  e.preventDefault(); $("drop").classList.remove("over");
+  if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]);
+});
+$("file").addEventListener("change", (e) => { if (e.target.files[0]) setFile(e.target.files[0]); });
+function setFile(f) {
+  picked = f;
+  $("dropBig").textContent = f.name;
+  $("dropSmall").textContent = (f.size / 1048576).toFixed(1) + " MB";
+}
+
+$("send").addEventListener("click", send);
+$("clear").addEventListener("click", () => { history = []; store.set("history", history); renderHistory(); });
+
+/* ---------- jonli oqim (faqat proksi rejimida) ---------- */
+/* Oqimda real mijoz suhbatlari saqlanadi, shuning uchun u alohida kalit
+   bilan yopilgan. Kalit brauzerda qoladi va har so'rovda sarlavhada ketadi. */
+function feedHeaders() {
+  const t = $("feedToken").value.trim();
+  return t ? { "x-feed-token": t } : {};
+}
+
+function fmtTime(ms) {
+  return new Date(ms).toLocaleTimeString("uz-UZ", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+}
+
+async function loadFeed() {
+  if (!PROXY) return;
+  try {
+    const r = await fetch("/api/feed", { headers: feedHeaders() });
+    if (r.status === 403) {
+      $("feedLocked").hidden = false;
+      $("feedList").innerHTML = "";
+      $("feedSum").textContent = "Kalit kiritilmagan yoki noto'g'ri.";
+      return;
+    }
+    $("feedLocked").hidden = true;
+    const { items = [] } = await r.json();
+    const done = items.filter((i) => i.text);
+    $("feedList").innerHTML = items.length
+      ? items.map(renderFeedItem).join("")
+      : "";
+    $("feedSum").textContent = items.length
+      ? items.length + " ta so'rov · " + done.length + " tasi tayyor · eskisi 2 soatdan keyin o'zi o'chadi"
+      : "Oxirgi 2 soatda so'rov bo'lmagan.";
+  } catch {
+    $("feedSum").textContent = "Oqimni o'qib bo'lmadi.";
+  }
+}
+
+function renderFeedItem(i) {
+  const t = $("feedToken").value.trim();
+  const nums = [];
+  if (i.duration) nums.push("audio " + i.duration.toFixed(1) + " s");
+  if (i.proc) nums.push("ishlov " + i.proc.toFixed(2) + " s");
+  if (i.rtf) nums.push("<b>" + i.rtf.toFixed(1) + "×</b>");
+  if (i.queue_sec) nums.push("navbat " + i.queue_sec.toFixed(1) + " s");
+  if (i.proc) nums.push("$" + (i.proc * GPU_PER_SEC).toFixed(4));
+
+  let player = '<span class="noaudio">audio saqlanmagan</span>';
+  if (i.audio?.kind === "stored") {
+    player = '<audio controls preload="none" src="/api/audio/' + encodeURIComponent(i.id) +
+             "?t=" + encodeURIComponent(t) + '"></audio>';
+  } else if (i.audio?.kind === "url") {
+    player = '<audio controls preload="none" src="' + esc(i.audio.url) + '"></audio>';
+  } else if (i.audio?.kind === "too_big") {
+    player = '<span class="noaudio">audio juda katta</span>';
+  }
+
+  const body = i.text
+    ? '<div class="said">' + esc(i.text) + "</div>"
+    : '<div class="said none">' + (i.error ? esc(i.error) : i.status || "kutilmoqda") + "</div>";
+
+  const numsHtml = nums.length
+    ? nums.map((n) => "<span>" + n + "</span>").join("")
+    : "<span>" + esc(i.status || "kutilmoqda") + "</span>";
+
+  return '<div class="fitem">' +
+    '<div class="head"><span class="when">' + fmtTime(i.at || Date.now()) + "</span>" +
+    '<span class="nums">' + numsHtml + "</span></div>" +
+    body + player + "</div>";
+}
+
+/* ---------- statistika ---------- */
+const dayStr = (d) => d.toISOString().slice(0, 10);
+
+function setRange(daysBack) {
+  const to = new Date();
+  const from = new Date(to.getTime() - daysBack * 86400000);
+  $("statFrom").value = dayStr(from);
+  $("statTo").value = dayStr(to);
+  loadStats();
+}
+
+function hms(sec) {
+  if (!sec) return "0";
+  const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60);
+  if (h) return h + " s " + String(m).padStart(2, "0") + " daq";
+  if (m) return m + " daq " + String(Math.round(sec % 60)).padStart(2, "0") + " s";
+  return sec.toFixed(1) + " s";
+}
+
+async function loadStats() {
+  if (!PROXY) return;
+  const from = $("statFrom").value, to = $("statTo").value;
+  try {
+    const r = await fetch("/api/stats?from=" + from + "&to=" + to, { headers: feedHeaders() });
+    if (!r.ok) { $("statNote").textContent = "Statistikani o'qib bo'lmadi (kalitni tekshiring)."; return; }
+    const { days = [] } = await r.json();
+
+    const sum = days.reduce((a, d) => ({
+      count: a.count + d.count, errors: a.errors + d.errors,
+      audio: a.audio + d.audio_sec, proc: a.proc + d.proc_sec,
+    }), { count: 0, errors: 0, audio: 0, proc: 0 });
+
+    $("statTotals").innerHTML =
+      metric("So'rovlar", sum.count, sum.errors ? sum.errors + " ta xato" : null) +
+      metric("Audio", hms(sum.audio)) +
+      metric("GPU vaqti", hms(sum.proc)) +
+      metric("O'rtacha tezlik", sum.proc ? (sum.audio / sum.proc).toFixed(1) + "×" : "—") +
+      metric("Narx", "$" + (sum.proc * GPU_PER_SEC).toFixed(3));
+
+    const max = Math.max(1, ...days.map((d) => d.count));
+    $("statChart").innerHTML = days.length
+      ? days.map((d) =>
+          '<div class="bar" title="' + d.day + ": " + d.count + " so'rov, " + hms(d.audio_sec) + ' audio">' +
+          "<b>" + d.count + "</b>" +
+          '<i style="height:' + (d.count / max * 100) + '%"></i>' +
+          "<u>" + d.day.slice(5) + "</u></div>").join("")
+      : '<div class="none">Bu oraliqda so\'rov bo\'lmagan.</div>';
+  } catch {
+    $("statNote").textContent = "Statistikani o'qib bo'lmadi.";
+  }
+}
+
+function metric(k, v, sub) {
+  return '<div class="metric"><div class="k">' + k + '</div><div class="v">' + v +
+    (sub ? '<small> ' + sub + "</small>" : "") + "</div></div>";
+}
+
+$("statFrom").addEventListener("change", loadStats);
+$("statTo").addEventListener("change", loadStats);
+document.querySelectorAll(".quick button").forEach((b) =>
+  b.addEventListener("click", () => setRange(Number(b.dataset.days))));
+
+$("feedToken").value = store.get("feedToken", "");
+$("feedToken").addEventListener("input", () => {
+  store.set("feedToken", $("feedToken").value);
+  loadFeed(); loadStats();
+});
+$("feedRefresh").addEventListener("click", loadFeed);
+
+renderHistory();
+
+detectMode().then(() => {
+  $("keyBox").hidden = PROXY;
+  $("proxyNote").hidden = !PROXY;
+  $("feedPanel").hidden = !PROXY;
+  $("statPanel").hidden = !PROXY;
+  poll();
+  setInterval(poll, 10000);
+  if (PROXY) {
+    setRange(6);                       // standart: oxirgi 7 kun
+    loadFeed();
+    setInterval(loadFeed, 15000);
+    setInterval(loadStats, 60000);
+  }
+});
+</script>
+
+</body>
+</html>

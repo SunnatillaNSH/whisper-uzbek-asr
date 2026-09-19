@@ -1,0 +1,21 @@
+# Ovoz Konsoli — kuzatuv sahifasi va RunPod proksisi.
+#
+# Deploy (config yo'lini ANIQ bering):
+#   npx wrangler deploy --config console/wrangler.toml
+#
+# --config'siz wrangler yuqoriga qarab boshqa konfigni topishi mumkin —
+# bir marta shunday bo'lib, "scratchpad" nomli keraksiz Worker yaratilgan edi.
+
+name = "ovoz-konsoli"
+main = "worker.js"
+compatibility_date = "2026-05-01"
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
+
+# Jonli oqim (2 soat) va kunlik statistika (120 kun). TTL bilan saqlanadi,
+# ya'ni eskisi o'zi o'chadi — tozalash kodi kerak emas.
+[[kv_namespaces]]
+binding = "OVOZ_FEED"
+id = "a4d4e46d295941c0822bd6eb134a50d1"
