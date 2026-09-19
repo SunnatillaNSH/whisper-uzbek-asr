@@ -122,8 +122,11 @@ bo'ladi, lekin asosiy muammo u emas.
 1. **VAD ni o'chirib sinash** — xatolarning 44.3% i tushib qolish, va
    tushayotgani aynan qisqa so'zlar. Bu eng arzon va eng katta ta'sirli tuzatish.
 2. **Hotwords** — `analysis/hotwords.txt` ga qarang.
-3. **Imlo post-processing** — almashtirishlarning 30.9% i
-   1–2 harflik farq, ya'ni trening emas, oddiy normallashtirish bilan tuzatiladi.
+3. ~~**Imlo post-processing** — almashtirishlarning 30.9% i 1–2 harflik
+   farq, ya'ni trening emas, oddiy normallashtirish bilan tuzatiladi.~~
+   **BEKOR QILINDI — pastdagi 6-bo'limga qarang.** 30.9% raqami
+   `char_dist <= 2` chelagidan olingan, chelak esa imlo tebranishini emas,
+   haqiqiy xatolarni ham sanaydi.
 4. Bo'laklarga kesishni o'zgartirish **shart emas** — u to'g'ri ishlayapti.
 
 ---
@@ -161,3 +164,38 @@ lekin jimlikdagi gallyutsinatsiya ham oshmaydi.
 **Diqqat:** 40 namuna kichik to'plam. Bu farqni ishonchli tasdiqlash
 uchun kattaroq sinov kerak — lekin so'z qamrovi ko'rsatkichi
 (80.7% → 87.8%) mexanik va shubhasiz.
+
+---
+
+## 6. "Imlo" chelagi — 3-band BEKOR QILINDI
+
+Yuqoridagi 3-band matn darajasidagi normallashtirish ~31% almashtirishga
+tegadi degan edi. Raqam `char_dist <= 2` chelagidan olingan va **chelak
+noto'g'ri nomlangan**: `olib` → `topib` ham masofa 2, lekin bu imlo emas,
+butunlay boshqa so'z.
+
+Eval-120 da (310 namuna, 14 015 so'z, WER 36.39%) almashtirishlar turiga
+qarab ajratilganda manzara boshqacha:
+
+| Turi | Almashtirishdan | WER'ga hissa |
+|---|---|---|
+| Boshqa so'z (akustik) | 79.1% | 16.74 punkt |
+| Qo'shimcha farqi (`to'lov`→`to'lovi`) | 10.1% | 2.14 punkt |
+| Bir belgi farqi (`u`→`bu`) | 8.1% | 1.71 punkt |
+| Tasdiqlash so'zi (`hm`→`ha`) | 2.3% | 0.49 punkt |
+| Apostrof | 0.4% | 0.09 punkt |
+
+**Apostrof masalasi yopiq.** So'zlarning 18.7% ida apostrof bor, lekin bu
+UCHRASH chastotasi edi, KELISHMOVCHILIK emas — `norm()` uch xil apostrofni
+bitta shaklga keltirgandan keyin qoldiq 0.09 punkt.
+
+**Keyin-ishlovning tavan darajasi ~2.7 punkt**, va uning kattasi ham matndan
+tuzatib bo'lmaydigan turdan: `to'lov` mi `to'lovi` mi ekanini faqat audio
+hal qiladi, imlo lug'ati emas. Qo'shimchalar telefon audiosida urg'usiz va
+eng avval yo'qoladigan qism.
+
+Xatoning asosiy massasi boshqa joyda: akustik almashtirish 16.74 punkt +
+tushib qolish 9.51 punkt = **WER ning 72% i**. Ularga faqat trening tegadi.
+
+O'lchov: `scripts/compare_runs.py` dagi `align()` bilan, `analysis/eval120_prod.json`
+ustida.
