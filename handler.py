@@ -36,19 +36,32 @@ LANGUAGE = os.environ.get("ASR_LANGUAGE", "uz")          # CT2 ISO kodini kutadi
 COMPUTE_TYPE = os.environ.get("ASR_COMPUTE_TYPE", "float16")
 BEAM_SIZE = int(os.environ.get("ASR_BEAM_SIZE", "5"))
 
-# Domen lug'ati. Bu so'zlar umumiy o'zbek nutqida kam uchraydi, shuning uchun
-# model ularni boshqa so'zlarga almashtirib yuboradi ("Face ID" → "besaklik").
-# Ro'yxat taxmin emas — mavjud transkriptlardagi chastota bo'yicha tuzilgan
-# (Face ID 601 marta, dastur 472, xodim 293, apparat 205, kontrol 157).
+# Domen lug'ati — STANDART HOLDA O'CHIQ.
 #
-# faster-whisper hotwords'ni initial_prompt bo'sh bo'lgandagina hisobga oladi,
-# shuning uchun ikkalasi bir vaqtda berilmaydi.
-DEFAULT_HOTWORDS = (
+# Dastlab u standart qilib qo'yilgandi: mantiq shundaki, "Face ID" kabi
+# atamalar umumiy nutqda kam uchraydi va model ularni almashtirib yuboradi.
+# Mantiq to'g'ri edi, natija esa teskari chiqdi.
+#
+# Bir xil 60 namunada o'lchandi:
+#     hotwords yoqiq    WER 48.27%   so'z qamrovi 88.2%
+#     hotwords o'chiq   WER 44.38%   so'z qamrovi 95.1%
+#
+# Sababi: faster-whisper hotwords'ni prompt sifatida beradi, ya'ni dekoderni
+# ro'yxatdagi so'zlar tomon og'diradi. Ro'yxat qo'ng'iroq mazmuniga mos
+# kelmasa — va 30 soniyalik bo'lakda ko'pincha mos kelmaydi — model eshitgan
+# so'zini tashlab, kutilayotgan so'zga tortiladi yoki umuman chiqarmaydi.
+#
+# Foydasi ham bor: gallyutsinatsiya kamayadi (insertion 195 → 116). Lekin
+# evaziga haqiqiy so'zlar yo'qoladi, sof hisobda zarari kattaroq.
+#
+# Kerak bo'lganda so'rovda berilsin: {"hotwords": "Face ID, davomat dasturi"}.
+# Butun trafik uchun majburiy standart sifatida emas.
+SUGGESTED_HOTWORDS = (
     "Face ID, davomat dasturi, xodim, xodimlar, apparat, kontrol, "
     "oylik to'lov, shartnoma, buxgalteriya, o'rnatish, ro'yxatdan o'tkazish, "
     "million so'm, dollar, plyus"
 )
-HOTWORDS = os.environ.get("ASR_HOTWORDS", DEFAULT_HOTWORDS)
+HOTWORDS = os.environ.get("ASR_HOTWORDS", "")
 INITIAL_PROMPT = os.environ.get("ASR_INITIAL_PROMPT", "")
 SAMPLING_RATE = 16000
 MAX_AUDIO_MB = int(os.environ.get("MAX_AUDIO_MB", "50"))
