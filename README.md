@@ -273,6 +273,7 @@ Standart manbalar — **tabiiy suhbat** nutqi (Toshkent podkastlari + YouTube ya
 |---|---|
 | [docs/API.md](docs/API.md) | Endpoint'dan foydalanish: so'rov formatlari, parametrlar, misollar, xarajat |
 | [docs/AGENT-BRIEF.md](docs/AGENT-BRIEF.md) | AI agent uchun topshiriq: xato tahlili va dataset tayyorlash |
+| [docs/AGENT-TASK-PRODUCTION.md](docs/AGENT-TASK-PRODUCTION.md) | AI agent uchun vazifa: production integratsiyasini yakunlash |
 
 ## API hujjati
 
