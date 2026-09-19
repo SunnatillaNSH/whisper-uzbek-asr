@@ -41,6 +41,8 @@ import os
 import re
 import sys
 
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
 # Sifat darvozalari — `build_weighted.py` dagilar bilan bir xil bo'lishi shart,
 # aks holda bu yerda o'tgan bo'lak keyingi bosqichda baribir tashlanadi.
 MAX_DUR = 30.0
