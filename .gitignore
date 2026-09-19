@@ -47,5 +47,27 @@ data/*.json
 # MA'LUMOT fayllari esa yo'q - hypotheses.json, sample_scores.csv va
 # boshqalarda real mijoz transkriptlari bor.
 analysis/*
-!analysis/*.md
 !analysis/*.py
+
+# Hisobotlar KENGAYTMA bo'yicha emas, ALOHIDA ruxsat bilan ochiladi.
+#
+# Avval bu yerda `!analysis/*.md` turgandi va u FINAL_COMPARISON.md ni ham
+# ochib yubordi — unda real transkript namunalari bor edi. Kengaytma bo'yicha
+# ruxsat berish shu sababli xavfli: har bir YANGI hisobot avtomatik ochilib
+# ketadi va uni hech kim ko'rib chiqmaydi.
+#
+# Standart holat — YOPIQ. Hisobot ko'rib chiqilgandan keyin shu ro'yxatga
+# qo'shiladi.
+!analysis/README.md
+!analysis/patterns.md
+!analysis/punctuation.md
+!analysis/endpoint_ablation.md
+
+# DIQQAT — oxirgi mos qoida g'olib bo'ladi, shuning uchun bu blok FAYL OXIRIDA
+# turishi shart. Yuqoridagi `!analysis/*.md` barcha .md larni ignore'dan
+# chiqarib yuboradi, lekin quyidagi ikki faylda REAL MIJOZ TRANSKRIPTLARI bor:
+#   FINAL_COMPARISON.md — o'qish uchun 10 ta namuna (Muxlisa | Voice matni)
+#   final_samples.json  — o'sha namunalarning xom holi
+# Repo ochiq, shuning uchun ular hech qachon chiqmasligi kerak.
+analysis/FINAL_COMPARISON.md
+analysis/final_samples.json
