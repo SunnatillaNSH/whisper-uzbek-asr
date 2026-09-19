@@ -8,19 +8,27 @@ Round 1-2 eval WER'ni 34.01% → 27.82% ga tushirdi, lekin real qo'ng'iroqda
 sezilarli yaxshilanish bermadi — sabab til bilimi emas, domen farqi: ochiq
 datasetlar toza va mikrofonga yaqin, qo'ng'iroq esa 8 kHz, siqilgan, shovqinli.
 
-Ma'lumot: `scripts/prepare_calls_for_colab.py` tayyorlagan `calls-colab.tar`
-(941 train + 81 eval namuna, 6.5 soat). Pod'ga ko'chirish uchun README'ga qarang.
+Ma'lumot: bitta CSV (`TRAIN_CSV`) — Round 5 uchun `analysis/build_weighted.py`
+bergan 975 namuna / 312 qo'ng'iroq / 6.49 soat. Dev bo'lagi shu CSV ichidan
+QO'NG'IROQ bo'yicha kesiladi (884 train / 91 dev), dataset paketidagi
+`eval.csv` dan EMAS — sababi `load_calls()` ustidagi izohda.
+
+Dataset paketida `eval_calls_120.json` bo'lishi SHART: usiz bo'lish eval-120
+bilan kesishmasligini tekshirib bo'lmaydi va skript to'xtaydi.
 
 Ishga tushirish:
     pip install -r requirements-train.txt
     python train_calls.py
 
 Sozlash (muhit o'zgaruvchilari, standart qiymatlar qavsda):
-    CALLS_DIR=/workspace/calls    MAX_STEPS=3000   BATCH_SIZE=8   LR=5e-5
+    CALLS_DIR=/workspace/calls    MAX_STEPS=900    BATCH_SIZE=8   LR=5e-5
+    TRAIN_CSV=train.csv           DEV_FRAC=0.10    DEV_SEED=20260919
     USE_PODCAST=0                 OUTPUT_DIR=/workspace/whisper-uz-calls
 """
 
+import json
 import os
+import random
 import sys
 import tarfile
 
@@ -54,13 +62,29 @@ CALLS_DIR  = env("CALLS_DIR", "/workspace/calls")
 CALLS_TAR  = env("CALLS_TAR", "/workspace/calls-colab.tar")
 OUTPUT_DIR = env("OUTPUT_DIR", "/workspace/whisper-uz-calls")
 
+# Dev to'plami TRENING qo'ng'iroqlaridan kesiladi, dataset paketidagi
+# `eval.csv` dan emas.
+#
+# Nega. Paketdagi `eval.csv` — `calls-colab/eval.csv`, 31 qo'ng'iroq, va
+# ularning hammasi eval-120 ichida. `load_best_model_at_end=True` bo'lgani
+# uchun eng yaxshi nazorat nuqtasi aynan o'sha qo'ng'iroqlar bo'yicha
+# TANLANADI. Gradientga tushmasa ham bu tanlov sizishi: yakuniy eval-120
+# raqami o'z nazorat nuqtasini tanlagan to'plamda o'lchanadi va xolis
+# bo'lmaydi.
+TRAIN_CSV  = env("TRAIN_CSV", "train.csv")      # CALLS_DIR ichida
+DEV_FRAC   = env("DEV_FRAC", "0.10", float)     # qo'ng'iroq bo'yicha
+DEV_SEED   = env("DEV_SEED", "20260919", int)
+EVAL_CALLS = env("EVAL_CALLS", "eval_calls_120.json")   # CALLS_DIR ichida
+
 LANGUAGE, TASK, SR = "uzbek", "transcribe", 16000
 MAX_LABEL = 448
 
-MAX_STEPS   = env("MAX_STEPS", "3000", int)
-EVAL_STEPS  = env("EVAL_STEPS", "250", int)
-SAVE_STEPS  = env("SAVE_STEPS", "250", int)
-WARMUP      = env("WARMUP_STEPS", "200", int)
+# 884 namuna / batch 8 = 111 qadam/epoxa, 8 epoxa = 888. Avvalgi standart
+# 3000 edi — o'sha hajmda 27 epoxa degani, ya'ni ortiqcha o'qish hududi.
+MAX_STEPS   = env("MAX_STEPS", "900", int)
+EVAL_STEPS  = env("EVAL_STEPS", "100", int)
+SAVE_STEPS  = env("SAVE_STEPS", "100", int)
+WARMUP      = env("WARMUP_STEPS", "100", int)
 BATCH_SIZE  = env("BATCH_SIZE", "8", int)      # A40/L40S 48 GB → 16 ham bo'ladi
 GRAD_ACCUM  = env("GRAD_ACCUM", "1", int)
 LR          = env("LR", "5e-5", float)
@@ -158,26 +182,83 @@ def light_augment(x, rng):
 
 # ──────────────────────────── Dataset ────────────────────────────
 
+def call_id(path):
+    """Fayl yo'lidan qo'ng'iroq raqami: `15286_p1_s2.flac` -> `15286`.
+
+    Bo'lish qo'ng'iroq darajasida bo'lishi shart. Bitta suhbatning qo'shni
+    bo'laklarida bir xil ovoz, bir xil mavzu va ko'pincha bir xil iboralar
+    bor — faylni ajratish bo'lakni ajratadi, suhbatni emas.
+    """
+    return os.path.basename(str(path)).split(".")[0].split("_")[0]
+
+
+def load_eval120_calls():
+    """eval-120 qo'ng'iroq raqamlari. Topilmasa TRENING BOSHLANMAYDI."""
+    path = os.path.join(CALLS_DIR, EVAL_CALLS)
+    if not os.path.exists(path):
+        sys.exit(f"{path} topilmadi.\n"
+                 f"Bu ro'yxatsiz dev bo'lagi eval-120 bilan kesishmasligini "
+                 f"tekshirib bo'lmaydi. Repodagi data/eval_calls_120.json ni "
+                 f"dataset paketiga qo'shing.")
+    with open(path) as f:
+        meta = json.load(f)
+    ids = {str(c["call_id"]) for c in meta.get("calls", [])}
+    ids |= {str(x) for x in meta.get("locked_from_previous", [])}
+    if not ids:
+        sys.exit(f"{path} bo'sh — qo'ng'iroq raqamlari o'qilmadi.")
+    return ids
+
+
 def load_calls():
-    """calls-colab.tar / CALLS_DIR dan train va eval to'plamlarini o'qiydi."""
-    if not os.path.exists(os.path.join(CALLS_DIR, "train.csv")):
+    """Bitta CSV dan train va dev to'plamlarini QO'NG'IROQ bo'yicha kesadi."""
+    if not os.path.exists(os.path.join(CALLS_DIR, TRAIN_CSV)):
         if not os.path.exists(CALLS_TAR):
-            sys.exit(f"Topilmadi: {CALLS_DIR}/train.csv va {CALLS_TAR}.\n"
+            sys.exit(f"Topilmadi: {CALLS_DIR}/{TRAIN_CSV} va {CALLS_TAR}.\n"
                      f"Qo'ng'iroq datasetini Pod'ga ko'chiring (README'ga qarang).")
         print(f"📦 {CALLS_TAR} ochilmoqda → {CALLS_DIR}", flush=True)
         os.makedirs(CALLS_DIR, exist_ok=True)
         with tarfile.open(CALLS_TAR) as t:
             t.extractall(CALLS_DIR)
 
-    out = []
-    for name in ("train.csv", "eval.csv"):
-        df = pd.read_csv(os.path.join(CALLS_DIR, name))
-        df["audio"] = df["path"].apply(lambda p: os.path.join(CALLS_DIR, p))
-        missing = [p for p in df["audio"] if not os.path.exists(p)]
-        if missing:
-            sys.exit(f"{name}: {len(missing)} ta audio fayl yo'q, masalan {missing[0]}")
-        out.append(df[["audio", "sentence"]].reset_index(drop=True))
-    return out
+    df = pd.read_csv(os.path.join(CALLS_DIR, TRAIN_CSV))
+    df["audio"] = df["path"].apply(lambda p: os.path.join(CALLS_DIR, p))
+    missing = [p for p in df["audio"] if not os.path.exists(p)]
+    if missing:
+        sys.exit(f"{TRAIN_CSV}: {len(missing)} ta audio fayl yo'q, masalan {missing[0]}")
+
+    df["call"] = df["path"].apply(call_id)
+    eval120 = load_eval120_calls()
+
+    # Qat'iy darvoza: eval-120 qo'ng'irog'i trening CSV'sida bo'lmasligi kerak.
+    # Bu `build_weighted.py` da hal qilingan, lekin CSV qo'lda ham yasalishi
+    # mumkin — tekshiruv treningga eng yaqin nuqtada turishi kerak.
+    leaked = sorted(set(df["call"]) & eval120)
+    if leaked:
+        sys.exit(f"TRENING TO'XTATILDI: {TRAIN_CSV} da eval-120 ning "
+                 f"{len(leaked)} qo'ng'irog'i bor, masalan {leaked[:5]}.\n"
+                 f"analysis/build_weighted.py ni qaytadan yurgizing.")
+
+    calls = sorted(set(df["call"]))
+    rng = random.Random(DEV_SEED)
+    rng.shuffle(calls)
+    n_dev = max(1, round(len(calls) * DEV_FRAC))
+    dev_calls = set(calls[:n_dev])
+
+    tr = df[~df["call"].isin(dev_calls)].reset_index(drop=True)
+    ev = df[df["call"].isin(dev_calls)].reset_index(drop=True)
+    if len(tr) == 0 or len(ev) == 0:
+        sys.exit(f"Bo'lish bo'sh to'plam berdi: train {len(tr)}, dev {len(ev)}.")
+
+    # Uch shart ham bajarilishi shart — biri buzilsa raqam ma'nosini yo'qotadi.
+    assert not (set(tr["call"]) & set(ev["call"])), "train va dev kesishdi"
+    assert not (set(tr["call"]) & eval120), "train eval-120 bilan kesishdi"
+    assert not (set(ev["call"]) & eval120), "dev eval-120 bilan kesishdi"
+
+    print(f"Bo'lish    : {len(calls)} qo'ng'iroq → train {len(tr)} namuna / "
+          f"{len(calls) - n_dev} qo'ng'iroq | dev {len(ev)} / {n_dev} "
+          f"(seed {DEV_SEED})")
+    print(f"eval-120   : {len(eval120)} qo'ng'iroq chetda, kesishuv 0 — tasdiqlandi")
+    return [tr[["audio", "sentence"]], ev[["audio", "sentence"]]]
 
 
 def to_ds(df, is_call):
