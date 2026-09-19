@@ -40,7 +40,8 @@ MAX_SEC = 30.0
 MIN_SEC = 1.2
 MIN_CHARS = 4
 CPS_MIN, CPS_MAX = 6.0, 26.0
-SEARCH_WIN = 6.0        # kesish nuqtasini maqsaddan shuncha soniya atrofida qidiramiz
+# SEARCH_WIN endi kerak emas: qidiruv oralig'i feasible_range() bilan
+# hisoblanadi (30 soniyalik cheklovdan kelib chiqib), simmetrik oyna emas.
 BATCH = int(os.environ.get("ASR_BATCH", "8"))
 ANCHOR_TOL = 3          # tekislash langari kesish so'zidan shuncha so'z uzoqda bo'lishi mumkin
 MIN_WORDS = 12          # bundan kam so'z tanilgan bo'lsa, tekislashga ishonmaymiz
@@ -80,7 +81,21 @@ def map_index(anchors, i):
     return j if dist <= ANCHOR_TOL else None
 
 
-def best_boundary(segs, target):
+def feasible_range(dur, i, n):
+    """i-kesish uchun RUXSAT ETILGAN vaqt oralig'i.
+
+    Har bir bo'lak 30 soniyadan qisqa bo'lishi SHART. 55 soniyalik namunani
+    ikkiga bo'lsak, kesish 25-30 s oralig'ida bo'lishi kerak: 24 s da kesilsa
+    o'ng bo'lak 31 s bo'lib, Whisper uni kesib tashlaydi, matn esa to'liq
+    qoladi. Maqsad atrofida simmetrik oyna qidirish shu sababli xato —
+    oynaning yarmi imkonsiz nuqtalarga tushadi va namuna keraksiz rad etiladi.
+    """
+    lo = dur - MAX_SEC * (n - i)
+    hi = MAX_SEC * i
+    return max(lo, 0.0), min(hi, dur)
+
+
+def best_boundary(segs, target, lo, hi):
     """Maqsad vaqtiga eng yaqin SEGMENT chegarasini qaytaradi.
 
     Whisper segmentlarni tabiiy pauzalarda (gap oxiri, uzoq sukut) ajratadi —
@@ -94,7 +109,7 @@ def best_boundary(segs, target):
     best = None
     for k in range(len(segs) - 1):
         t = segs[k]["end"]
-        if t is None or abs(t - target) > SEARCH_WIN:
+        if t is None or not (lo <= t <= hi):
             continue
         d = abs(t - target)
         if best is None or d < best[0]:
@@ -125,7 +140,11 @@ def process(x, ref_text, segs):
 
     cut_times, cut_words, prev_t, prev_j = [], [], 0.0, 0
     for i in range(1, n):
-        g = best_boundary(segs, dur * i / n)
+        lo, hi = feasible_range(dur, i, n)
+        lo = max(lo, prev_t + MIN_SEC)
+        if lo > hi:
+            return None
+        g = best_boundary(segs, dur * i / n, lo, hi)
         if g is None:
             return None
         _, k, t = g
