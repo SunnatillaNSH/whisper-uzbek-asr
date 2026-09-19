@@ -175,14 +175,34 @@ function sourceKey(req) {
   return ua.slice(0, 48);
 }
 
-const bumpNoToken = (env, req) => bumpDay(env, (c) => {
-  c.no_token = (c.no_token || 0) + 1;
-  const by = c.no_token_by || (c.no_token_by = {});
+function addSource(bucket, req) {
   const k = sourceKey(req);
-  if (by[k] === undefined && Object.keys(by).length >= 12) {
-    by["boshqa"] = (by["boshqa"] || 0) + 1;
+  if (bucket[k] === undefined && Object.keys(bucket).length >= 12) {
+    bucket["boshqa"] = (bucket["boshqa"] || 0) + 1;
   } else {
-    by[k] = (by[k] || 0) + 1;
+    bucket[k] = (bucket[k] || 0) + 1;
+  }
+}
+
+/**
+ * Kuzatuv hisoblagichlari — FAQAT /run uchun.
+ *
+ * Nega faqat /run: har bir job o'ndan ortiq marta /status bilan so'raladi
+ * va konsol /health ni har 10 soniyada chaqiradi. Ularning har birida KV'ga
+ * yozsak, kunlik yozuv chegarasi tez tugaydi. Mijoz esa har uchala yo'lga
+ * bir xil sarlavha yuboradi, shuning uchun /run ni sanash yetarli.
+ *
+ * Ikki tomonlama: no_token_by — tokensiz kelganlar, auth_ok_by — token
+ * bilan kelganlar. Ikkinchisi muhim, chunki "tokensiz hech kim kelmadi"
+ * degani "production token bilan kelyapti" degani EMAS — trafik umuman
+ * bo'lmagan bo'lishi ham mumkin. auth_ok_by ijobiy tasdiq beradi.
+ */
+const bumpAuth = (env, req, ok) => bumpDay(env, (c) => {
+  if (ok) {
+    addSource(c.auth_ok_by || (c.auth_ok_by = {}), req);
+  } else {
+    c.no_token = (c.no_token || 0) + 1;
+    addSource(c.no_token_by || (c.no_token_by = {}), req);
   }
 });
 
@@ -275,8 +295,9 @@ export default {
     if (!auth.ok && auth.enforced) {
       return json({ error: "Kalit kerak yoki noto'g'ri. Authorization: Bearer <kalit>" }, 401);
     }
-    if (!auth.ok && auth.gated) {
-      ctx.waitUntil(bumpNoToken(env, req).catch(() => {}));   // kuzatuv rejimi
+    // Kuzatuv hisoblagichi faqat /run uchun — sabab bumpAuth izohida.
+    if (auth.gated && action === "run") {
+      ctx.waitUntil(bumpAuth(env, req, auth.ok).catch(() => {}));
     }
 
     let target = null;
