@@ -35,6 +35,21 @@ MODEL_DIR = os.environ.get("MODEL_DIR", "/app/model")
 LANGUAGE = os.environ.get("ASR_LANGUAGE", "uz")          # CT2 ISO kodini kutadi
 COMPUTE_TYPE = os.environ.get("ASR_COMPUTE_TYPE", "float16")
 BEAM_SIZE = int(os.environ.get("ASR_BEAM_SIZE", "5"))
+
+# Domen lug'ati. Bu so'zlar umumiy o'zbek nutqida kam uchraydi, shuning uchun
+# model ularni boshqa so'zlarga almashtirib yuboradi ("Face ID" → "besaklik").
+# Ro'yxat taxmin emas — mavjud transkriptlardagi chastota bo'yicha tuzilgan
+# (Face ID 601 marta, dastur 472, xodim 293, apparat 205, kontrol 157).
+#
+# faster-whisper hotwords'ni initial_prompt bo'sh bo'lgandagina hisobga oladi,
+# shuning uchun ikkalasi bir vaqtda berilmaydi.
+DEFAULT_HOTWORDS = (
+    "Face ID, davomat dasturi, xodim, xodimlar, apparat, kontrol, "
+    "oylik to'lov, shartnoma, buxgalteriya, o'rnatish, ro'yxatdan o'tkazish, "
+    "million so'm, dollar, plyus"
+)
+HOTWORDS = os.environ.get("ASR_HOTWORDS", DEFAULT_HOTWORDS)
+INITIAL_PROMPT = os.environ.get("ASR_INITIAL_PROMPT", "")
 SAMPLING_RATE = 16000
 MAX_AUDIO_MB = int(os.environ.get("MAX_AUDIO_MB", "50"))
 
@@ -145,11 +160,19 @@ def handler(job):
         if audio is None or len(audio) == 0:
             return {"status": "error", "message": "Audio bo'sh yoki o'qib bo'lmadi"}
 
+        # So'rov darajasida bekor qilish mumkin; bo'sh satr = o'chirish
+        hot = inp.get("hotwords", HOTWORDS) or None
+        prompt = inp.get("initial_prompt", INITIAL_PROMPT) or None
+        if prompt:
+            hot = None          # faster-whisper ikkalasini birga qabul qilmaydi
+
         segments, info = model.transcribe(
             audio,
             language=inp.get("language", LANGUAGE),
             task="transcribe",
             beam_size=int(inp.get("beam_size", BEAM_SIZE)),
+            hotwords=hot,
+            initial_prompt=prompt,
             vad_filter=bool(inp.get("vad", True)),
             vad_parameters=dict(min_silence_duration_ms=500, speech_pad_ms=200),
             # Standart qiymati True va Whisper'ning eng mashhur nuqsonini
