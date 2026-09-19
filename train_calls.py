@@ -79,6 +79,27 @@ CALL_RATIO = env("CALL_RATIO", "0.35", float)
 AUG_PROB      = env("AUG_PROB", "0.75", float)       # podkast uchun
 CALL_AUG_PROB = env("CALL_AUG_PROB", "0.6", float)   # qo'ng'iroq uchun
 
+
+BASE_PROCESSOR = "openai/whisper-large-v3"
+
+
+def load_processor(model_id):
+    """Processor'ni yuklaydi, kerak bo'lsa baza modeldan.
+
+    LoRA faqat q_proj/v_proj matritsalarini o'zgartiradi — tokenizer va
+    feature extractor baza model bilan AYNAN bir xil qoladi. Shuning uchun
+    model repo'sidagi tokenizer o'qilmasa (masalan transformers v5 formatida
+    saqlangan bo'lsa, 4.x uni o'qiy olmaydi: "'list' object has no attribute
+    'keys'"), baza modeldan olish mutlaqo xavfsiz.
+    """
+    try:
+        return WhisperProcessor.from_pretrained(model_id, language=LANGUAGE, task=TASK)
+    except Exception as e:
+        print(f"⚠️  {model_id} processor o'qilmadi ({type(e).__name__}), "
+              f"{BASE_PROCESSOR} dan olinadi", flush=True)
+        return WhisperProcessor.from_pretrained(BASE_PROCESSOR, language=LANGUAGE, task=TASK)
+
+
 # ──────────────────────────── Augmentatsiya ────────────────────────────
 
 _B, _A = butter(4, [300 / (SR / 2), 3400 / (SR / 2)], btype="band")
@@ -257,7 +278,7 @@ def main():
     print(f"Chiqish    : {OUTPUT_DIR}")
     print(f"Qadamlar   : {MAX_STEPS} | Batch {BATCH_SIZE}x{GRAD_ACCUM} | LR {LR}")
 
-    processor = WhisperProcessor.from_pretrained(MODEL_NAME, language=LANGUAGE, task=TASK)
+    processor = load_processor(MODEL_NAME)
 
     # --- Ma'lumot (modelni yuklashdan OLDIN: GPU band bo'lsa .map qotib qoladi) ---
     train_df, eval_df = load_calls()

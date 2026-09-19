@@ -60,8 +60,17 @@ def load_eval():
     return df
 
 
+BASE_PROCESSOR = "openai/whisper-large-v3"
+
+
 def transcribe_all(model_id, df):
-    processor = WhisperProcessor.from_pretrained(model_id, language="uzbek", task="transcribe")
+    # Tokenizer/feature extractor fine-tuning'da o'zgarmaydi — model
+    # repo'sidagisi o'qilmasa (v5 formati), bazadan olamiz.
+    try:
+        processor = WhisperProcessor.from_pretrained(model_id, language="uzbek", task="transcribe")
+    except Exception as e:
+        print(f"  ({type(e).__name__}) processor {BASE_PROCESSOR} dan olindi")
+        processor = WhisperProcessor.from_pretrained(BASE_PROCESSOR, language="uzbek", task="transcribe")
     model = WhisperForConditionalGeneration.from_pretrained(
         model_id, torch_dtype=torch.float16).cuda().eval()
 
