@@ -1,9 +1,12 @@
-# RunPod Serverless konteyner uchun kutubxonalar
-# (torch alohida, Dockerfile ichida CUDA versiyasi bilan o'rnatiladi)
+# RunPod Serverless (faster-whisper) uchun kutubxonalar.
+# torch ATAYLAB YO'Q — CTranslate2 o'z dvigateliga ega.
 runpod
-transformers>=4.46
+faster-whisper==1.2.1
+# CTranslate2 CUDA quriluvchisi uchun kerakli NVIDIA kutubxonalari.
+# Dockerfile'da LD_LIBRARY_PATH shu papkalarga yo'naltirilgan.
+nvidia-cublas-cu12
+nvidia-cudnn-cu12==9.*
 soundfile
-librosa
 numpy
 requests
 huggingface_hub
