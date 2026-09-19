@@ -19,3 +19,4 @@ data/calls-colab/
 *.flac
 *.tar
 .DS_Store
+data/calls-rejected/
