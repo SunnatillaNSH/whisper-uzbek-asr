@@ -30,7 +30,7 @@ import torch
 from dataclasses import dataclass
 from typing import Any, Dict, List
 
-from datasets import Audio, Dataset, concatenate_datasets, load_dataset
+from datasets import Audio, Dataset, Features, Value, concatenate_datasets, load_dataset
 from peft import LoraConfig, get_peft_model
 from scipy.signal import butter, lfilter, resample_poly
 from transformers import (
@@ -160,8 +160,23 @@ def load_calls():
 
 
 def to_ds(df, is_call):
-    d = Dataset.from_pandas(df).cast_column("audio", Audio(sampling_rate=SR))
-    return d.add_column("is_call", [is_call] * len(d))
+    """DataFrame → HF Dataset, audio ustuni bilan.
+
+    `from_pandas` + `cast_column` ISHLATILMAYDI: pandas matn ustunini arrow'da
+    `large_string` qilib yaratadi, pyarrow esa uni Audio struct'iga o'gira
+    olmaydi ("Unsupported cast from large_string to struct"). Buning o'rniga
+    Audio turini qurilish paytida e'lon qilamiz — hech qanday cast bo'lmaydi.
+    """
+    feats = Features({
+        "audio": Audio(sampling_rate=SR),
+        "sentence": Value("string"),
+        "is_call": Value("int64"),
+    })
+    return Dataset.from_dict({
+        "audio": [str(p) for p in df["audio"]],
+        "sentence": [str(s) for s in df["sentence"]],
+        "is_call": [is_call] * len(df),
+    }, features=feats)
 
 
 def load_podcast():
