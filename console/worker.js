@@ -233,7 +233,14 @@ export default {
     }
 
     if (action === "stats") {
-      if (!feedAllowed(req, env)) return json({ error: "Yopiq" }, 403);
+      // Statistikada faqat raqamlar bor — mijoz ma'lumoti yo'q. Shuning
+      // uchun u FEED_TOKEN dan tashqari oddiy API kaliti bilan ham ochiladi:
+      // kuzatuv rejimidagi no_token_by ni o'qish uchun konsol kaliti shart
+      // bo'lmasligi kerak. /api/feed va /api/audio esa FEED_TOKEN da qoladi —
+      // ularda real suhbat matni va audiosi bor.
+      if (!feedAllowed(req, env) && !checkApi(req, env).ok) {
+        return json({ error: "Yopiq" }, 403);
+      }
       const q = url.searchParams;
       const from = q.get("from") || "0000-00-00";
       const to = q.get("to") || "9999-99-99";
