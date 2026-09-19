@@ -11,12 +11,14 @@ O'zbek nutqni matnga o'giruvchi model ishlab turibdi, lekin real telefon
 qo'ng'iroqlarida WER **~43%**. Nima uchun adashayotganini aniqlash va keyingi
 trening uchun ma'lumotni tayyorlash kerak.
 
-Uchta natija kutiladi:
+To'rtta natija kutiladi:
 
 1. **Xato naqshlari** — model qaysi so'zlarni qaysiga almashtiradi
 2. **Diagnostika** — xatolar qayerda to'planadi va bu ma'lumot tayyorlashdagi
    muammoni ko'rsatadimi
-3. **Qiyin namunalar ro'yxati** — keyingi treningda ko'proq o'rgatish uchun
+3. **Imlo va tinish belgilari tahlili** — WER bu xatolarni ko'rsatmaydi
+4. **Treningga tayyor dataset** — modelning zaif joylari ko'proq uchraydigan
+   qilib qayta tartiblangan
 
 ---
 
@@ -58,7 +60,16 @@ Round 3 va 4 farqi statistik ahamiyatsiz (p = 0.732).
 
 ## 1-bosqich: gipotezalarni yig'ish
 
-Har bir eval namunasini endpoint'ga yuborib, modelning matnini saqlang.
+**Ikkala to'plam uchun ham** modelning matnini yig'ing:
+
+| To'plam | Nima uchun | Hajmi |
+|---|---|---|
+| `data/calls-colab/eval.csv` | xato tahlili (2-bosqich) | 81 namuna |
+| `data/calls-colab/train.csv` + `data/calls-dataset-28s/` | dataset tayyorlash (4-bosqich) | 1249 namuna |
+
+Jami ~1330 namuna, ~11 soat audio. 19x realtime da ≈ 35 daqiqa, ≈ $0.40.
+
+Har bir namunani endpoint'ga yuborib, modelning matnini saqlang.
 
 ```
 POST /run   {"input": {"audio_base64": "...", "language": "uz", "beam_size": 5, "vad": true}}
@@ -171,6 +182,77 @@ muammoni ko'rsatadi.
 
 `hard_examples.csv` uchun: WER bo'yicha saralang, lekin **eng yuqori 5% ni
 chetlating** — ular odatda qiyin audio emas, balki buzilgan yorliq.
+
+---
+
+---
+
+## 4-bosqich: keyingi trening uchun dataset
+
+Maqsad — treningga tayyor `train.csv` yaratish, unda **modelning zaif joylari
+ko'proq uchraydi**. Bu "hard example mining" deb ataladi: model o'z sig'imini
+allaqachon biladigan narsasiga emas, adashayotgan joyiga sarflaydi.
+
+### a) Manbalarni birlashtirish
+
+| Manba | Namuna |
+|---|---|
+| `data/calls-colab/train.csv` | 941 |
+| `data/calls-dataset-28s/` (28 s bo'laklar) | 308 |
+
+`data/calls-colab/eval.csv` (81) **QO'SHILMAYDI** — u o'lchov uchun.
+
+Takrorlanishni `call_id` bo'yicha tekshiring: yangi partiyadagi qo'ng'iroq
+eval to'plamida bo'lsa, uni chetlang. Aks holda model eval suhbatini treningda
+ko'radi va WER soxta yaxshi chiqadi.
+
+### b) Sifat darvozalari
+
+Har bir namuna uchun tekshiring va o'tmaganini chetlang:
+
+- davomiylik **≤ 30 soniya** va ≥ 1.2 soniya
+- matn bo'sh emas, ≥ 4 belgi
+- **cps (belgi/soniya) 6–26 oralig'ida** — bu matn-audio mosligining
+  bilvosita tekshiruvi. Mavjud ma'lumotda mediana 14.5; undan keskin
+  chetlashgan namuna odatda noto'g'ri moslashtirilgan.
+
+### c) Qiyinlik bo'yicha og'irlik
+
+Har bir trening namunasi uchun WER hisoblang (model matni vs Muxlisa matni,
+normallashtirilgan holda) va shu bo'yicha takrorlash sonini bering:
+
+| Namuna WER'i | Takrorlash |
+|---|---|
+| eng yuqori **5%** | **0 — chetlanadi** |
+| 60–95% oralig'i | 3 |
+| 30–60% oralig'i | 2 |
+| 30% dan past | 1 |
+
+Eng yuqori 5% ni chetlash **majburiy**. Juda yuqori WER odatda "qiyin audio"
+emas, balki **buzilgan yorliq**: matn boshqa audioga tegishli yoki bo'lish
+noto'g'ri bo'lgan. Bunday namunani ko'proq o'rgatish modelni buzadi.
+
+Chetlangan namunalarni alohida faylga yozing — odam ko'rib chiqishi mumkin.
+
+### d) Chiqish
+
+| Fayl | Mazmuni |
+|---|---|
+| `analysis/train_weighted.csv` | `path,sentence` — og'irlik bo'yicha takrorlangan |
+| `analysis/train_scores.csv` | `path,wer,duration,cps,repeat` — shaffoflik uchun |
+| `analysis/excluded.csv` | chetlangan namunalar va sababi |
+
+Hisobotda ko'rsating: qancha namuna kirdi, qanchasi chetlandi va nega,
+yakuniy hajm (namuna va soat), WER taqsimoti.
+
+### Bilib qo'yish kerak
+
+Bu bosqich **yangi yorliq yaratmaydi**. U faqat mavjud Muxlisa yorliqlarini
+qayta tartiblaydi. Ya'ni model Muxlisa darajasidan **o'tib keta olmaydi** —
+faqat unga tezroq yaqinlashadi.
+
+Muxlisa darajasidan oshish uchun odam tuzatgan yorliq kerak. Bu bosqichning
+vazifasi boshqa: mavjud ma'lumotdan **maksimal foyda** olish.
 
 ---
 
