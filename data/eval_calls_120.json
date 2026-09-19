@@ -1,0 +1,1013 @@
+{
+ "target": 120,
+ "seed": 20260919,
+ "locked_from_previous": [
+  15574,
+  16379,
+  16796,
+  16827,
+  16977,
+  17060,
+  17237,
+  18043,
+  18389,
+  18463,
+  18775,
+  19246,
+  19304,
+  19360,
+  19723,
+  19778,
+  19959,
+  20467,
+  20515,
+  20724,
+  20833,
+  20989,
+  20992,
+  20995,
+  21102,
+  21140,
+  21235,
+  21430,
+  21479,
+  21519,
+  21567
+ ],
+ "calls": [
+  {
+   "call_id": 15286,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 90.47999999999999,
+   "samples": 2,
+   "words": 178
+  },
+  {
+   "call_id": 15574,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 293.72,
+   "samples": 6,
+   "words": 525
+  },
+  {
+   "call_id": 16161,
+   "batch": "eski",
+   "direction": "in",
+   "duration": 33.49,
+   "samples": 1,
+   "words": 71
+  },
+  {
+   "call_id": 16166,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 21.44,
+   "samples": 1,
+   "words": 34
+  },
+  {
+   "call_id": 16212,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 44.48,
+   "samples": 1,
+   "words": 100
+  },
+  {
+   "call_id": 16299,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 14.72,
+   "samples": 1,
+   "words": 21
+  },
+  {
+   "call_id": 16379,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 157.58,
+   "samples": 3,
+   "words": 338
+  },
+  {
+   "call_id": 16561,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 120.81,
+   "samples": 3,
+   "words": 244
+  },
+  {
+   "call_id": 16785,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 13.18,
+   "samples": 1,
+   "words": 33
+  },
+  {
+   "call_id": 16795,
+   "batch": "eski",
+   "direction": "in",
+   "duration": 79.8,
+   "samples": 2,
+   "words": 188
+  },
+  {
+   "call_id": 16796,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 14.52,
+   "samples": 1,
+   "words": 38
+  },
+  {
+   "call_id": 16827,
+   "batch": "eski",
+   "direction": "in",
+   "duration": 5.5,
+   "samples": 1,
+   "words": 9
+  },
+  {
+   "call_id": 16849,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 21.65,
+   "samples": 1,
+   "words": 41
+  },
+  {
+   "call_id": 16928,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 88.44,
+   "samples": 2,
+   "words": 190
+  },
+  {
+   "call_id": 16976,
+   "batch": "eski",
+   "direction": "in",
+   "duration": 54.08,
+   "samples": 1,
+   "words": 92
+  },
+  {
+   "call_id": 16977,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 39.85,
+   "samples": 1,
+   "words": 84
+  },
+  {
+   "call_id": 17060,
+   "batch": "eski",
+   "direction": "in",
+   "duration": 252.26,
+   "samples": 5,
+   "words": 520
+  },
+  {
+   "call_id": 17090,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 36.15,
+   "samples": 1,
+   "words": 50
+  },
+  {
+   "call_id": 17138,
+   "batch": "eski",
+   "direction": "in",
+   "duration": 45.31,
+   "samples": 1,
+   "words": 95
+  },
+  {
+   "call_id": 17237,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 49.15,
+   "samples": 1,
+   "words": 106
+  },
+  {
+   "call_id": 17290,
+   "batch": "eski",
+   "direction": "in",
+   "duration": 8.12,
+   "samples": 1,
+   "words": 13
+  },
+  {
+   "call_id": 17836,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 16.81,
+   "samples": 1,
+   "words": 41
+  },
+  {
+   "call_id": 17858,
+   "batch": "eski",
+   "direction": "in",
+   "duration": 286.45,
+   "samples": 6,
+   "words": 489
+  },
+  {
+   "call_id": 18043,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 149.55,
+   "samples": 3,
+   "words": 220
+  },
+  {
+   "call_id": 18194,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 32.83,
+   "samples": 1,
+   "words": 53
+  },
+  {
+   "call_id": 18389,
+   "batch": "eski",
+   "direction": "in",
+   "duration": 26.75,
+   "samples": 1,
+   "words": 59
+  },
+  {
+   "call_id": 18408,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 54.97,
+   "samples": 1,
+   "words": 115
+  },
+  {
+   "call_id": 18463,
+   "batch": "eski",
+   "direction": "in",
+   "duration": 274.15000000000003,
+   "samples": 4,
+   "words": 492
+  },
+  {
+   "call_id": 18473,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 83.7,
+   "samples": 2,
+   "words": 180
+  },
+  {
+   "call_id": 18727,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 165.32999999999998,
+   "samples": 3,
+   "words": 316
+  },
+  {
+   "call_id": 18733,
+   "batch": "eski",
+   "direction": "in",
+   "duration": 26.31,
+   "samples": 1,
+   "words": 50
+  },
+  {
+   "call_id": 18775,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 426.63000000000005,
+   "samples": 5,
+   "words": 650
+  },
+  {
+   "call_id": 18972,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 161.08,
+   "samples": 3,
+   "words": 332
+  },
+  {
+   "call_id": 19224,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 120.03999999999999,
+   "samples": 3,
+   "words": 217
+  },
+  {
+   "call_id": 19244,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 45.37,
+   "samples": 1,
+   "words": 87
+  },
+  {
+   "call_id": 19246,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 147.89,
+   "samples": 3,
+   "words": 287
+  },
+  {
+   "call_id": 19304,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 27.99,
+   "samples": 1,
+   "words": 67
+  },
+  {
+   "call_id": 19360,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 19.64,
+   "samples": 1,
+   "words": 36
+  },
+  {
+   "call_id": 19371,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 215.79999999999998,
+   "samples": 3,
+   "words": 420
+  },
+  {
+   "call_id": 19527,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 179.32,
+   "samples": 3,
+   "words": 380
+  },
+  {
+   "call_id": 19533,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 32.0,
+   "samples": 1,
+   "words": 64
+  },
+  {
+   "call_id": 19597,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 275.45,
+   "samples": 4,
+   "words": 572
+  },
+  {
+   "call_id": 19625,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 310.51,
+   "samples": 4,
+   "words": 670
+  },
+  {
+   "call_id": 19634,
+   "batch": "eski",
+   "direction": "in",
+   "duration": 139.63,
+   "samples": 3,
+   "words": 232
+  },
+  {
+   "call_id": 19723,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 134.77,
+   "samples": 3,
+   "words": 242
+  },
+  {
+   "call_id": 19749,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 38.27,
+   "samples": 1,
+   "words": 78
+  },
+  {
+   "call_id": 19766,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 40.38,
+   "samples": 1,
+   "words": 86
+  },
+  {
+   "call_id": 19778,
+   "batch": "eski",
+   "direction": "in",
+   "duration": 20.03,
+   "samples": 1,
+   "words": 27
+  },
+  {
+   "call_id": 19959,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 30.71,
+   "samples": 1,
+   "words": 80
+  },
+  {
+   "call_id": 19995,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 25.27,
+   "samples": 1,
+   "words": 52
+  },
+  {
+   "call_id": 20013,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 28.76,
+   "samples": 1,
+   "words": 74
+  },
+  {
+   "call_id": 20023,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 28.22,
+   "samples": 1,
+   "words": 56
+  },
+  {
+   "call_id": 20088,
+   "batch": "eski",
+   "direction": "in",
+   "duration": 26.04,
+   "samples": 1,
+   "words": 51
+  },
+  {
+   "call_id": 20120,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 24.63,
+   "samples": 1,
+   "words": 36
+  },
+  {
+   "call_id": 20245,
+   "batch": "eski",
+   "direction": "in",
+   "duration": 413.4600000000001,
+   "samples": 8,
+   "words": 882
+  },
+  {
+   "call_id": 20348,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 4.33,
+   "samples": 1,
+   "words": 5
+  },
+  {
+   "call_id": 20361,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 54.97,
+   "samples": 1,
+   "words": 105
+  },
+  {
+   "call_id": 20383,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 75.44,
+   "samples": 2,
+   "words": 114
+  },
+  {
+   "call_id": 20467,
+   "batch": "eski",
+   "direction": "in",
+   "duration": 229.54,
+   "samples": 5,
+   "words": 415
+  },
+  {
+   "call_id": 20511,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 167.4,
+   "samples": 4,
+   "words": 338
+  },
+  {
+   "call_id": 20515,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 109.94,
+   "samples": 2,
+   "words": 242
+  },
+  {
+   "call_id": 20640,
+   "batch": "eski",
+   "direction": "in",
+   "duration": 39.99,
+   "samples": 1,
+   "words": 62
+  },
+  {
+   "call_id": 20678,
+   "batch": "eski",
+   "direction": "in",
+   "duration": 128.56,
+   "samples": 3,
+   "words": 222
+  },
+  {
+   "call_id": 20723,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 174.23999999999998,
+   "samples": 4,
+   "words": 308
+  },
+  {
+   "call_id": 20724,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 13.18,
+   "samples": 1,
+   "words": 29
+  },
+  {
+   "call_id": 20727,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 60.85,
+   "samples": 2,
+   "words": 107
+  },
+  {
+   "call_id": 20734,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 32.0,
+   "samples": 1,
+   "words": 49
+  },
+  {
+   "call_id": 20833,
+   "batch": "eski",
+   "direction": "in",
+   "duration": 41.79,
+   "samples": 1,
+   "words": 94
+  },
+  {
+   "call_id": 20844,
+   "batch": "eski",
+   "direction": "in",
+   "duration": 8.48,
+   "samples": 1,
+   "words": 15
+  },
+  {
+   "call_id": 20875,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 19.32,
+   "samples": 1,
+   "words": 31
+  },
+  {
+   "call_id": 20954,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 141.81,
+   "samples": 3,
+   "words": 202
+  },
+  {
+   "call_id": 20955,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 20.92,
+   "samples": 1,
+   "words": 47
+  },
+  {
+   "call_id": 20989,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 14.14,
+   "samples": 1,
+   "words": 20
+  },
+  {
+   "call_id": 20992,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 4.47,
+   "samples": 1,
+   "words": 12
+  },
+  {
+   "call_id": 20995,
+   "batch": "eski",
+   "direction": "in",
+   "duration": 28.64,
+   "samples": 1,
+   "words": 36
+  },
+  {
+   "call_id": 21005,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 115.12,
+   "samples": 3,
+   "words": 242
+  },
+  {
+   "call_id": 21027,
+   "batch": "eski",
+   "direction": "in",
+   "duration": 82.94,
+   "samples": 1,
+   "words": 186
+  },
+  {
+   "call_id": 21102,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 84.53,
+   "samples": 2,
+   "words": 186
+  },
+  {
+   "call_id": 21107,
+   "batch": "eski",
+   "direction": "in",
+   "duration": 78.39,
+   "samples": 2,
+   "words": 160
+  },
+  {
+   "call_id": 21110,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 359.65000000000003,
+   "samples": 5,
+   "words": 432
+  },
+  {
+   "call_id": 21131,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 21.69,
+   "samples": 1,
+   "words": 41
+  },
+  {
+   "call_id": 21140,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 21.01,
+   "samples": 1,
+   "words": 53
+  },
+  {
+   "call_id": 21148,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 28.95,
+   "samples": 1,
+   "words": 57
+  },
+  {
+   "call_id": 21188,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 27.19,
+   "samples": 1,
+   "words": 53
+  },
+  {
+   "call_id": 21224,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 10.55,
+   "samples": 1,
+   "words": 23
+  },
+  {
+   "call_id": 21235,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 27.03,
+   "samples": 1,
+   "words": 36
+  },
+  {
+   "call_id": 21242,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 47.36,
+   "samples": 1,
+   "words": 89
+  },
+  {
+   "call_id": 21297,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 25.91,
+   "samples": 1,
+   "words": 52
+  },
+  {
+   "call_id": 21319,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 28.28,
+   "samples": 1,
+   "words": 50
+  },
+  {
+   "call_id": 21356,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 21.13,
+   "samples": 1,
+   "words": 30
+  },
+  {
+   "call_id": 21357,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 175.15,
+   "samples": 3,
+   "words": 380
+  },
+  {
+   "call_id": 21384,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 120.94,
+   "samples": 3,
+   "words": 238
+  },
+  {
+   "call_id": 21430,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 48.8,
+   "samples": 1,
+   "words": 118
+  },
+  {
+   "call_id": 21479,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 40.63,
+   "samples": 1,
+   "words": 80
+  },
+  {
+   "call_id": 21509,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 31.69,
+   "samples": 1,
+   "words": 59
+  },
+  {
+   "call_id": 21519,
+   "batch": "eski",
+   "direction": "in",
+   "duration": 41.66,
+   "samples": 1,
+   "words": 112
+  },
+  {
+   "call_id": 21544,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 140.91,
+   "samples": 3,
+   "words": 274
+  },
+  {
+   "call_id": 21567,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 4.67,
+   "samples": 1,
+   "words": 8
+  },
+  {
+   "call_id": 21595,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 25.45,
+   "samples": 1,
+   "words": 43
+  },
+  {
+   "call_id": 21616,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 117.61,
+   "samples": 3,
+   "words": 242
+  },
+  {
+   "call_id": 21619,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 505.4800000000001,
+   "samples": 6,
+   "words": 914
+  },
+  {
+   "call_id": 21642,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 169.57999999999998,
+   "samples": 4,
+   "words": 327
+  },
+  {
+   "call_id": 21664,
+   "batch": "yangi",
+   "direction": "out",
+   "duration": 66.79,
+   "samples": 3,
+   "words": 132
+  },
+  {
+   "call_id": 21668,
+   "batch": "yangi",
+   "direction": "in",
+   "duration": 31.73,
+   "samples": 2,
+   "words": 55
+  },
+  {
+   "call_id": 21681,
+   "batch": "yangi",
+   "direction": "in",
+   "duration": 17.29,
+   "samples": 1,
+   "words": 8
+  },
+  {
+   "call_id": 21694,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 22.88,
+   "samples": 1,
+   "words": 41
+  },
+  {
+   "call_id": 21698,
+   "batch": "yangi",
+   "direction": "out",
+   "duration": 72.49000000000001,
+   "samples": 3,
+   "words": 114
+  },
+  {
+   "call_id": 21703,
+   "batch": "yangi",
+   "direction": "in",
+   "duration": 155.73000000000002,
+   "samples": 6,
+   "words": 164
+  },
+  {
+   "call_id": 21714,
+   "batch": "yangi",
+   "direction": "in",
+   "duration": 79.12,
+   "samples": 3,
+   "words": 180
+  },
+  {
+   "call_id": 21715,
+   "batch": "eski",
+   "direction": "out",
+   "duration": 22.09,
+   "samples": 1,
+   "words": 47
+  },
+  {
+   "call_id": 21766,
+   "batch": "yangi",
+   "direction": "in",
+   "duration": 82.92,
+   "samples": 3,
+   "words": 191
+  },
+  {
+   "call_id": 21771,
+   "batch": "yangi",
+   "direction": "out",
+   "duration": 16.64,
+   "samples": 1,
+   "words": 23
+  },
+  {
+   "call_id": 21778,
+   "batch": "yangi",
+   "direction": "out",
+   "duration": 421.1200000000001,
+   "samples": 15,
+   "words": 735
+  },
+  {
+   "call_id": 21790,
+   "batch": "yangi",
+   "direction": "out",
+   "duration": 28.11,
+   "samples": 1,
+   "words": 52
+  },
+  {
+   "call_id": 21795,
+   "batch": "yangi",
+   "direction": "out",
+   "duration": 236.69000000000005,
+   "samples": 9,
+   "words": 516
+  },
+  {
+   "call_id": 21809,
+   "batch": "yangi",
+   "direction": "out",
+   "duration": 13.16,
+   "samples": 1,
+   "words": 22
+  },
+  {
+   "call_id": 21814,
+   "batch": "yangi",
+   "direction": "out",
+   "duration": 30.900000000000002,
+   "samples": 2,
+   "words": 61
+  },
+  {
+   "call_id": 21819,
+   "batch": "yangi",
+   "direction": "out",
+   "duration": 123.25,
+   "samples": 5,
+   "words": 184
+  },
+  {
+   "call_id": 21820,
+   "batch": "yangi",
+   "direction": "out",
+   "duration": 44.599999999999994,
+   "samples": 2,
+   "words": 85
+  },
+  {
+   "call_id": 21826,
+   "batch": "yangi",
+   "direction": "out",
+   "duration": 17.34,
+   "samples": 1,
+   "words": 29
+  }
+ ],
+ "summary": {
+  "calls": 120,
+  "samples": 263,
+  "hours": 2.99,
+  "words": 20240,
+  "by_batch": {
+   "eski": 104,
+   "yangi": 16
+  },
+  "by_direction": {
+   "in": 29,
+   "out": 91
+  }
+ }
+}
