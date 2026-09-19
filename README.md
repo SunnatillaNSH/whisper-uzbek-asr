@@ -267,6 +267,13 @@ Standart manbalar — **tabiiy suhbat** nutqi (Toshkent podkastlari + YouTube ya
 
 **Nima uchun aynan shunday:** qo'ng'iroq tahlili uchun tabiiy, erkin suhbat nutqi o'qib yozdirilgan toza nutqdan muhimroq. UzbekVoice va Common Voice — odamlar jumlalarni mikrofonga o'qib bergan yozuvlar; telefon qo'ng'irog'i esa shovqinli, siqilgan va tez. Datasetni kattalashtirish o'zi sifatni oshirmaydi — **mos turdagi** ma'lumot kerak.
 
+## Hujjatlar
+
+| Hujjat | Mazmuni |
+|---|---|
+| [docs/API.md](docs/API.md) | Endpoint'dan foydalanish: so'rov formatlari, parametrlar, misollar, xarajat |
+| [docs/AGENT-BRIEF.md](docs/AGENT-BRIEF.md) | AI agent uchun topshiriq: xato tahlili va dataset tayyorlash |
+
 ## API hujjati
 
 Endpoint'dan foydalanish bo'yicha to'liq qo'llanma: **[docs/API.md](docs/API.md)**
