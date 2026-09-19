@@ -118,10 +118,28 @@ def best_boundary(segs, target, lo, hi):
 
 
 def process(x, ref_text, segs):
-    """(audio, matn) bo'laklari yoki None."""
+    """(audio, matn) bo'laklari yoki None.
+
+    Bo'laklar sonini OSHIRIB ko'radi. 55 soniyalik faylni ikkiga bo'lganda
+    ruxsat etilgan oraliq atigi 25-30 s — Whisper segmentlari 5-10 soniyalik
+    bo'lgani uchun ko'pincha bu tor oynaga chegara tushmaydi va namuna rad
+    etiladi. Uchga bo'lsak oraliq ancha kengayadi va bo'laklar ~18 s bo'ladi,
+    bu trening uchun bemalol.
+    """
     dur = len(x) / SR
     if dur <= MAX_SEC:
         return [(x, ref_text)]
+    n_min = math.ceil(dur / MAX_SEC)
+    for n in range(n_min, n_min + 3):
+        if dur / n < MIN_SEC * 2:
+            break
+        out = _try_split(x, ref_text, segs, dur, n)
+        if out is not None:
+            return out
+    return None
+
+
+def _try_split(x, ref_text, segs, dur, n):
 
     # Gipoteza so'zlari va har bir segment chegarasidagi so'z indeksi
     hyp_n, seg_word_end = [], []
@@ -131,7 +149,6 @@ def process(x, ref_text, segs):
     if len(hyp_n) < MIN_WORDS:
         return None
 
-    n = math.ceil(dur / MAX_SEC)
     ref_raw = ref_text.split()
     ref_n = [norm_word(w) for w in ref_raw]
     anchors = build_anchors(hyp_n, ref_n)
@@ -142,6 +159,7 @@ def process(x, ref_text, segs):
     for i in range(1, n):
         lo, hi = feasible_range(dur, i, n)
         lo = max(lo, prev_t + MIN_SEC)
+        hi = min(hi, prev_t + MAX_SEC)     # oldingi kesishdan 30 s dan uzoq emas
         if lo > hi:
             return None
         g = best_boundary(segs, dur * i / n, lo, hi)
@@ -174,6 +192,10 @@ def process(x, ref_text, segs):
 
 def main():
     rows = [json.loads(l) for l in open(os.path.join(REJ_DIR, "rejected.jsonl"))]
+    limit = int(os.environ.get("LIMIT", "0"))
+    if limit:
+        rows = rows[:limit]
+        print(f"⚠️  LIMIT={limit} — faqat sinov uchun", flush=True)
     print(f"Chetlangan namunalar: {len(rows)} "
           f"({sum(r['duration'] for r in rows)/3600:.2f} soat)", flush=True)
 
@@ -183,7 +205,7 @@ def main():
 
     produced, stats = [], {"ok": 0, "rad": 0, "asr_xato": 0}
     for i, r in enumerate(rows, 1):
-        if i % 20 == 0:
+        if i % 10 == 0:
             print(f"  {i}/{len(rows)} | qabul {stats['ok']} | rad {stats['rad']}", flush=True)
         x, sr = sf.read(os.path.join(REJ_DIR, r["path"]), dtype="float32")
         if x.ndim > 1:
