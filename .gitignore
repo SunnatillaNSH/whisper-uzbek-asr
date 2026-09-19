@@ -39,6 +39,9 @@ analysis/final_samples.json
 # buyurgan data/pairs.json), shuning uchun butun turkum yopiladi.
 data/*.json
 !data/eval_calls_120.json
+# 50 qo'ng'iroqli qism to'plam ro'yxati — faqat qo'ng'iroq raqamlari va
+# qatlam belgilari, matn yo'q. Taqqoslash takrorlanishi uchun commit qilinadi.
+!data/eval_calls_50.json
 *.ogg
 *.aac
 *.opus
@@ -86,7 +89,13 @@ analysis/final_samples.json
 # ============================================================
 data/*
 !data/eval_calls_120.json
+# 50 qo'ng'iroqli qism to'plam ro'yxati — faqat qo'ng'iroq raqamlari va
+# qatlam belgilari, matn yo'q. Taqqoslash takrorlanishi uchun commit qilinadi.
+!data/eval_calls_50.json
 !data/train.csv.example
 
 # Wrangler ishchi fayllari
 .wrangler/
+
+# Pod'dan ko'chirilgan modellar — gigabaytlab, repo ochiq
+models/
