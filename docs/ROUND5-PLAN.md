@@ -65,18 +65,38 @@ oynasiga sig'maydi, jumla chegarasi esa jimlikka to'g'ri kelmagan).
 Tiklansa trening audiosi 6.49 → ~11.7 soatga chiqadi (+80%). Round 4 da
 yetishmagan narsa aynan shu edi — yangi ma'lumot.
 
-Tiklash yo'li: endpointdan `word_timestamps=True` so'rab, so'z vaqtlari
-bo'yicha kesish. **Diqqat:** forced alignment bir marta tashlab yuborilgan,
-lekin sabab boshqa edi — lokal transformers yo'lida SEGMENT vaqtlari buzilgan
-edi (bitta "segment"da 97–314 so'z), so'z vaqtlari esa to'g'ri chiqqan.
-faster-whisper boshqa kod yo'li va RTF 10.8×, ya'ni 5.19 soat audio ≈ 30
-GPU-daqiqa ≈ **$0.19**.
+Tiklash yo'li: so'z vaqtlari bo'yicha kesish — `scripts/recover_rejected.py`.
+Vaqt modelning o'zidan, matn yorliqdan olinadi; kesim faqat yorliqning jumla
+chegarasida va faqat ikkala uchi ham AYNAN mos tushgan so'z bilan
+langarlangan joyda bo'ladi. Ya'ni yorliq matni o'zgarmaydi.
+
+**ENDPOINT ORQALI EMAS, POD USTIDA.** Production `handler.py` so'z vaqtlarini
+umuman qaytarmaydi — unda `word_timestamps` yo'q. Endpoint yo'li obrazni
+qayta qurib, ishlab turgan serverless'ni yangilashni talab qilardi. Pod'da
+faster-whisper to'g'ridan chaqiriladi: o'sha narx (~30 GPU-daqiqa), endpoint
+byudjetiga **$0**, production'ga xavf yo'q. Round 5 Pod'i baribir kerak —
+tiklash o'sha seansning boshiga qo'shiladi.
+
+**Kutilayotgan hosil (lokal hisoblandi, GPU'siz).**
+
+| Holat | Namuna | Soat | Kirishdan |
+|---|---|---|---|
+| Nazariy shift (to'liq langar) | 719 | 4.97 | 96% |
+| So'z aniqligi 80% | 1135 | 4.40 | 85% |
+| **So'z aniqligi 64% (o'lchangan)** | **~1250** | **~3.5** | **69%** |
+| So'z aniqligi 50% (yomon holat) | 1136 | 2.61 | 50% |
+
+O'lchangan holatda trening audiosi **6.49 → ~10.0 soat (+55%)**. Yomon
+holatda ham +40%. Uch xil tasodifiy urug'da natija barqaror.
+
+5643 jumladan faqat **1 tasi** o'zi 30 s dan uzun — ya'ni jumla tuzilishi
+to'siq emas, hamma narsa langar zichligiga bog'liq.
 
 ### Tavsiya — shu tartibda
 
-1. **Avval `calls-rejected` ni tiklash** (~$0.19 endpoint). Budjetdan oshadi,
-   ruxsat kerak.
-2. Keyin Round 5 ni ~11 soatda o'qitish.
+1. **Avval `calls-rejected` ni tiklash** — o'sha Pod seansida, birinchi ~30
+   daqiqa. Endpoint byudjetiga tegmaydi.
+2. Keyin Round 5 ni ~10 soatda o'qitish.
 3. Agar 1-band rad etilsa, Round 5 ni 6.49 soatda ham qilish mumkin, lekin
    kutilayotgan foyda kichik — buni oldindan aytib qo'yaman, keyin
    "yaxshilanmadi" degan natija kutilmagan bo'lmasin.
@@ -117,12 +137,24 @@ ortiqcha o'qish hududi. 8 epoxa qoidasi shundan kelib chiqqan.
 - Yakuniy o'lchov eval-120 da. **Endpoint budjetiga tegmasligi uchun o'lchov
   Pod ustida qilinadi**: model CT2 ga o'giriladi va 310 namuna o'sha yerda
   yuriladi. Endpoint xarajati $0.
+- O'lchov `scripts/eval_pod.py` bilan. U ishga tushishdan oldin `handler.py`
+  ni `ast` bilan o'qib, dekodlash production bilan AYNAN bir xil ekanini
+  tasdiqlaydi va mos kelmasa to'xtaydi — aks holda taqqoslash modelni emas,
+  sozlamani o'lchaydi.
 - Taqqoslash `scripts/compare_runs.py` bilan — juftlashgan bootstrap,
   `analysis/eval120_prod.json` asosiy yurish sifatida.
 
-**Narx.** A40 ~$0.39/soat. 900 qadam ≈ 25–30 daqiqa, model yuklash va
-o'rnatish ≈ 20 daqiqa, CT2 o'girish va eval ≈ 15 daqiqa → ~1.2 soat ≈
-**$0.45–0.60**. $5 chegarasidan ancha past.
+**Narx.** A40 ~$0.39/soat:
+
+| Bosqich | Vaqt |
+|---|---|
+| O'rnatish, model yuklash | ~20 daq |
+| `calls-rejected` tiklash (5.19 soat audio) | ~30 daq |
+| Trening, 900 qadam | ~25–30 daq |
+| CT2 o'girish + eval-120 (310 namuna) | ~15 daq |
+| **Jami** | **~1.6 soat ≈ $0.62** |
+
+$5 chegarasidan ancha past. Endpoint xarajati $0.
 
 ## 5. Muvaffaqiyat mezoni — oldindan belgilanadi
 
