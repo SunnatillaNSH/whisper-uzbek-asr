@@ -3,7 +3,12 @@
 # konteynerda quyidagicha o'rnating:
 #   pip install --break-system-packages -r requirements-train.txt
 
-transformers>=4.46
+# YUQORI CHEGARA MAJBURIY. Yuqori chegara bo'lmaganda Pod'ga transformers
+# 5.17 o'rnatildi; Round 3/4 esa 4.x da yurgan va kod o'sha API'ga yozilgan.
+# Bundan tashqari 5.x saqlagan tokenizer'ni 4.x o'qiy olmaydi
+# ("'list' object has no attribute 'keys'"), ya'ni model keyin ishlatib
+# bo'lmaydigan holga kelishi mumkin.
+transformers>=4.46,<5
 # datasets 4+ audio dekodlashni torchcodec'ga o'tkazgan, u esa RunPod
 # obrazida yo'q va ffmpeg kutubxonalarini talab qiladi. 3.x soundfile
 # ishlatadi — bizga aynan shu kerak.
