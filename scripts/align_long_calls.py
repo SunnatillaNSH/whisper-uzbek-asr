@@ -5,7 +5,7 @@
 TAXMIN qiladi. Ishonch bo'lmasa namunani chetlab o'tadi — shu sababli 843
 namunadan 235 tasi (5.2 soat) ishlatilmay qolgan.
 
-Bu skript taxmin qilmaydi. Qo'ng'iroqlarda o'qitilgan model audioni SO'Z
+Bu skript taxmin qilmaydi. Qo'ng'iroqlarda o'qitilgan model audioni SEGMENT
 DARAJASIDAGI vaqt belgilari bilan transkripsiya qiladi, so'ng Muxlisa matni
 shu gipotezaga so'zma-so'z tekislanadi (difflib). Natijada har bir kesish
 nuqtasi uchun "audioning shu soniyasi matnning shu so'ziga to'g'ri keladi"
@@ -40,7 +40,8 @@ MAX_SEC = 30.0
 MIN_SEC = 1.2
 MIN_CHARS = 4
 CPS_MIN, CPS_MAX = 6.0, 26.0
-SEARCH_WIN = 4.0        # kesish nuqtasini maqsaddan shuncha soniya atrofida qidiramiz
+SEARCH_WIN = 6.0        # kesish nuqtasini maqsaddan shuncha soniya atrofida qidiramiz
+BATCH = int(os.environ.get("ASR_BATCH", "8"))
 ANCHOR_TOL = 3          # tekislash langari kesish so'zidan shuncha so'z uzoqda bo'lishi mumkin
 MIN_WORDS = 12          # bundan kam so'z tanilgan bo'lsa, tekislashga ishonmaymiz
 
@@ -79,35 +80,43 @@ def map_index(anchors, i):
     return j if dist <= ANCHOR_TOL else None
 
 
-def best_gap(words, target):
-    """Maqsad vaqtiga yaqin ENG KATTA so'zlararo pauzani topadi.
+def best_boundary(segs, target):
+    """Maqsad vaqtiga eng yaqin SEGMENT chegarasini qaytaradi.
 
-    Kesishni pauzaga tushirish muhim: so'z o'rtasidan kesilsa, ikkala bo'lakda
-    ham yarim so'z qoladi va model chalkashadi.
+    Whisper segmentlarni tabiiy pauzalarda (gap oxiri, uzoq sukut) ajratadi —
+    ya'ni segment chegarasi bizga kerak bo'lgan kesish nuqtasining o'zi.
+
+    So'z darajasidagi vaqt belgilari (`return_timestamps="word"`) aniqroq,
+    lekin ular cross-attention DTW talab qiladi va namunasiga ~50 soniya
+    ketadi — 235 namuna uchun 3 soatdan ortiq GPU vaqti. Segment belgilari
+    dekodlash paytida bepul chiqadi va bu vazifa uchun yetarli.
     """
     best = None
-    for k in range(len(words) - 1):
-        end, nxt = words[k]["end"], words[k + 1]["start"]
-        mid = (end + nxt) / 2
-        if abs(mid - target) > SEARCH_WIN:
+    for k in range(len(segs) - 1):
+        t = segs[k]["end"]
+        if t is None or abs(t - target) > SEARCH_WIN:
             continue
-        gap = max(0.0, nxt - end)
-        score = gap - 0.05 * abs(mid - target)     # pauza kattaroq, maqsadga yaqinroq
-        if best is None or score > best[0]:
-            best = (score, k, mid)
+        d = abs(t - target)
+        if best is None or d < best[0]:
+            best = (d, k, t)
     return best
 
 
-def process(x, ref_text, words):
+def process(x, ref_text, segs):
     """(audio, matn) bo'laklari yoki None."""
     dur = len(x) / SR
     if dur <= MAX_SEC:
         return [(x, ref_text)]
-    if len(words) < MIN_WORDS:
+
+    # Gipoteza so'zlari va har bir segment chegarasidagi so'z indeksi
+    hyp_n, seg_word_end = [], []
+    for sg in segs:
+        hyp_n.extend(norm_word(w) for w in str(sg["text"]).split())
+        seg_word_end.append(len(hyp_n) - 1)
+    if len(hyp_n) < MIN_WORDS:
         return None
 
     n = math.ceil(dur / MAX_SEC)
-    hyp_n = [norm_word(w["word"]) for w in words]
     ref_raw = ref_text.split()
     ref_n = [norm_word(w) for w in ref_raw]
     anchors = build_anchors(hyp_n, ref_n)
@@ -116,11 +125,11 @@ def process(x, ref_text, words):
 
     cut_times, cut_words, prev_t, prev_j = [], [], 0.0, 0
     for i in range(1, n):
-        g = best_gap(words, dur * i / n)
+        g = best_boundary(segs, dur * i / n)
         if g is None:
             return None
         _, k, t = g
-        j = map_index(anchors, k)
+        j = map_index(anchors, seg_word_end[k])
         if j is None or t <= prev_t or j <= prev_j:
             return None
         cut_times.append(t)
@@ -161,18 +170,16 @@ def main():
         if x.ndim > 1:
             x = x.mean(axis=1)
         try:
-            res = asr(x.copy(), return_timestamps="word",
+            res = asr(x.copy(), return_timestamps=True, batch_size=BATCH,
                       generate_kwargs={"language": "uzbek", "task": "transcribe"})
-            words = [w for w in res.get("chunks", [])
-                     if w.get("timestamp") and w["timestamp"][0] is not None
-                     and w["timestamp"][1] is not None]
-            words = [{"word": w["text"], "start": w["timestamp"][0],
-                      "end": w["timestamp"][1]} for w in words]
+            segs = [{"text": c["text"], "start": c["timestamp"][0], "end": c["timestamp"][1]}
+                    for c in res.get("chunks", [])
+                    if c.get("timestamp") and c["timestamp"][1] is not None]
         except Exception as e:
             stats["asr_xato"] += 1
             continue
 
-        pieces = process(x, str(r["sentence"]).strip(), words)
+        pieces = process(x, str(r["sentence"]).strip(), segs)
         if pieces is None:
             stats["rad"] += 1
             continue
