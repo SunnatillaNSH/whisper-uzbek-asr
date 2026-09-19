@@ -23,3 +23,29 @@ data/calls-rejected/
 data/calls-dataset-28s/
 data/calls-new28/
 data/sellup-train-ready.csv
+
+# ------------------------------------------------------------------
+# XATO TAHLILI — REAL TRANSKRIPTLAR. Repo OCHIQ, shuning uchun mijoz
+# qo'ng'iroqlari matni HECH QACHON commit qilinmasin.
+# Skriptlar (*.py) va transkriptsiz, faqat raqamli hisobotlar mumkin.
+analysis/*.json
+analysis/*.csv
+analysis/FINAL_COMPARISON.md
+analysis/hypotheses.json
+analysis/final_samples.json
+
+# Mijoz ma'lumoti ochiq repo'ga CHIQMASIN. data/ dagi JSON fayllar odatda
+# transkript yoki juftliklar bo'ladi (masalan AGENT-TASK-PRODUCTION.md
+# buyurgan data/pairs.json), shuning uchun butun turkum yopiladi.
+data/*.json
+!data/eval_calls_120.json
+*.ogg
+*.aac
+*.opus
+
+# Tahlil papkasi: hisobotlar (.md) va skriptlar (.py) commit qilinadi,
+# MA'LUMOT fayllari esa yo'q - hypotheses.json, sample_scores.csv va
+# boshqalarda real mijoz transkriptlari bor.
+analysis/*
+!analysis/*.md
+!analysis/*.py
