@@ -24,11 +24,24 @@ ROOT = os.path.dirname(OUT)
 # Eski usulda WER butun qo'ng'iroq matnidan olinardi va bo'laklarga taxminan
 # tarqatilardi — qamrov yarmigacha yetmasdi. Endi har bir faylning o'z
 # gipotezasi bor, ya'ni bahosi ham o'ziniki.
+#
+# Zaxira yo'li ATAYLAB SHOVQINLI. Bir marta `sample_wer.csv` umuman
+# yaratilmadi (uni to'ldirishi kerak bo'lgan yurishning natijalari yo'qolgan)
+# va skript buni sezmay eski `sample_scores.csv` ga qaytdi: qo'ng'iroq
+# darajasidagi, VAD va hotwords tuzatilishidan OLDINGI baholar, 975
+# namunadan 546 tasini qamraydigan. Dataset tayyor ko'rinardi, og'irliklari
+# esa boshqa modelning xatolaridan edi. Endi ogohlantirish beradi va
+# BALLAR_ZAXIRASI=1 qo'yilmasa to'xtaydi.
 SAMPLE_WER = f'{OUT}/sample_wer.csv'
 if os.path.exists(SAMPLE_WER):
     scores = {r['path']: float(r['wer']) for r in csv.DictReader(open(SAMPLE_WER))}
     BY_PATH = True
-else:                                  # zaxira: eski, qo'ng'iroq darajasidagi
+else:
+    msg = (f"{SAMPLE_WER} yo'q — og'irliklar eski, QO'NG'IROQ darajasidagi "
+           f"sample_scores.csv dan olinadi (boshqa sozlamalarda o'lchangan).")
+    if os.environ.get('BALLAR_ZAXIRASI') != '1':
+        sys.exit(f"{msg}\nAtayin shuni xohlasangiz: BALLAR_ZAXIRASI=1 python3 {__file__}")
+    print(f"OGOHLANTIRISH: {msg}", file=sys.stderr)
     scores = {r['call_key']: float(r['wer']) for r in csv.DictReader(open(f'{OUT}/sample_scores.csv'))}
     BY_PATH = False
 wers = sorted(scores.values())
