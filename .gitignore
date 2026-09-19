@@ -98,4 +98,6 @@ data/*
 .wrangler/
 
 # Pod'dan ko'chirilgan modellar — gigabaytlab, repo ochiq
-models/
+models/*
+# Qayta yig'ish yo'riqnomasi — model emas, hujjat
+!models/README.md
