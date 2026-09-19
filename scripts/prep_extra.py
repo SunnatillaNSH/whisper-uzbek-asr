@@ -45,6 +45,40 @@ def vote_cols(cols):
     return up, dn
 
 
+def iter_parquet(repo_id, split, n_shards):
+    """Parquet shard'larini birma-bir yuklab, yozuvlarni qaytaradi."""
+    import io
+    import pyarrow.parquet as pq
+    import soundfile as _sf
+    from huggingface_hub import hf_hub_download, list_repo_files
+
+    files = sorted(f for f in list_repo_files(repo_id, repo_type="dataset")
+                   if f.endswith(".parquet") and f"/{split}-" in f)
+    if not files:
+        sys.exit(f"{repo_id} da {split} uchun parquet topilmadi")
+    print(f"Shardlar: {len(files)} ta, {min(n_shards, len(files))} tasi olinadi", flush=True)
+
+    for fn in files[:n_shards]:
+        print(f"  yuklanmoqda {fn}", flush=True)
+        local = hf_hub_download(repo_id, fn, repo_type="dataset")
+        tbl = pq.read_table(local)
+        print(f"  {fn}: {tbl.num_rows} qator, ustunlar {tbl.column_names}", flush=True)
+        for batch in tbl.to_batches(max_chunksize=256):
+            for row in batch.to_pylist():
+                au = row.get("audio")
+                # Parquet'da audio {bytes, path}; uni massivga aylantiramiz,
+                # shunda qolgan kod oqim rejimidagi bilan bir xil ishlaydi.
+                if isinstance(au, dict) and au.get("bytes"):
+                    try:
+                        arr, sr = _sf.read(io.BytesIO(au["bytes"]), dtype="float32")
+                    except Exception:
+                        continue
+                    row["audio"] = {"array": arr, "sampling_rate": sr}
+                yield row
+        del tbl
+        os.remove(local)          # shard ~GB; diskda saqlash shart emas
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--id", default="DavronSherbaev/uzbekvoice-filtered")
@@ -55,6 +89,8 @@ def main():
                     help="ko'pi bilan shuncha yozuv ko'riladi (0 = cheksiz)")
     ap.add_argument("--min-votes", type=int, default=1,
                     help="up - down shu qiymatdan kam bo'lsa tashlanadi")
+    ap.add_argument("--parquet", type=int, default=0,
+                    help="oqim o'rniga shuncha parquet shard'ini to'g'ridan yuklaydi")
     a = ap.parse_args()
 
     import numpy as np
@@ -62,8 +98,17 @@ def main():
     from datasets import load_dataset
 
     os.makedirs(os.path.join(a.out, "audio"), exist_ok=True)
-    print(f"Manba : {a.id} ({a.split}), oqim rejimi", flush=True)
-    ds = load_dataset(a.id, split=a.split, streaming=True)
+
+    if a.parquet:
+        # Oqim rejimi bu repo'da yurmadi: 20 daqiqada birinchi yozuv ham
+        # chiqmadi va dataset keshi 8 KB da qotib qoldi. Parquet shard'lari
+        # nomlangan va bashoratli — kerakli sonini to'g'ridan yuklab,
+        # pyarrow bilan o'qiymiz. Audio ustuni HF'da {bytes, path} struct'i.
+        ds = iter_parquet(a.id, a.split, a.parquet)
+        print(f"Manba : {a.id} ({a.split}), {a.parquet} ta parquet shard", flush=True)
+    else:
+        print(f"Manba : {a.id} ({a.split}), oqim rejimi", flush=True)
+        ds = load_dataset(a.id, split=a.split, streaming=True)
 
     kept, scanned = 0, 0
     tcol = ucol = dcol = None
