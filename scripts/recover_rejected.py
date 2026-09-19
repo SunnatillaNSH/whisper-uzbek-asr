@@ -240,6 +240,8 @@ def main():
     ap.add_argument("--src", default="data/calls-rejected")
     ap.add_argument("--out", default="data/calls-recovered")
     ap.add_argument("--limit", type=int, default=0)
+    ap.add_argument("--eval-calls", default="data/eval_calls_120.json")
+    ap.add_argument("--csv", default="", help="qo'shimcha ravishda train formatida CSV yozadi")
     a = ap.parse_args()
 
     if a.selftest:
@@ -252,6 +254,22 @@ def main():
 
     model = WhisperModel(a.model, device="cuda", compute_type="float16")
     rows = [json.loads(l) for l in open(os.path.join(a.src, "rejected.jsonl"))]
+
+    # eval-120 qo'ng'iroqlari SHU YERDA chiqariladi, treningdan oldin emas.
+    # O'lchandi: hovuzdagi 136 qo'ng'iroqdan 32 tasi eval-120 da (0.98 soat,
+    # 52 bo'lak). Ularni tiklash o'lchov suhbatlarini treningga olib kirardi.
+    # `train_calls.py` dagi assert oxirgi to'siq, birinchisi emas: u yerga
+    # yetib borgan sizish butun yurishni to'xtatadi.
+    ev_path = os.path.join(ROOT, a.eval_calls)
+    if not os.path.exists(ev_path):
+        sys.exit(f"{ev_path} topilmadi — eval-120 ni chetlab bo'lmaydi.")
+    meta = json.load(open(ev_path))
+    ev120 = ({str(c["call_id"]) for c in meta.get("calls", [])}
+             | {str(x) for x in meta.get("locked_from_previous", [])})
+    before = len(rows)
+    rows = [r for r in rows if str(r["call_id"]) not in ev120]
+    print(f"eval-120 chetlandi: {before - len(rows)} bo'lak, qoldi {len(rows)}")
+
     if a.limit:
         rows = rows[: a.limit]
     os.makedirs(os.path.join(a.out, "audio"), exist_ok=True)
@@ -294,6 +312,17 @@ def main():
     with open(os.path.join(a.out, "manifest.jsonl"), "w", encoding="utf-8") as f:
         for m in man:
             f.write(json.dumps(m, ensure_ascii=False) + "\n")
+    if a.csv:
+        import csv as _csv
+        cp = os.path.join(ROOT, a.csv) if not os.path.isabs(a.csv) else a.csv
+        os.makedirs(os.path.dirname(cp), exist_ok=True)
+        with open(cp, "w", newline="", encoding="utf-8") as f:
+            wr = _csv.writer(f)
+            wr.writerow(["path", "sentence"])
+            for m in man:
+                wr.writerow([f"{os.path.basename(a.out)}/{m['path']}", m["sentence"]])
+        print(f"  CSV      : {a.csv}")
+
     hours = sum(m["duration"] for m in man) / 3600
     print(f"\n  Kirish   : {len(rows)} bo'lak")
     print(f"  Tiklandi : {kept} namuna, {hours:.2f} soat")

@@ -42,6 +42,7 @@ from datasets import Audio, Dataset, Features, Value, concatenate_datasets, load
 from peft import LoraConfig, get_peft_model
 from scipy.signal import butter, lfilter, resample_poly
 from transformers import (
+    EarlyStoppingCallback,
     Seq2SeqTrainer,
     Seq2SeqTrainingArguments,
     TrainerCallback,
@@ -71,6 +72,10 @@ OUTPUT_DIR = env("OUTPUT_DIR", "/workspace/whisper-uz-calls")
 # TANLANADI. Gradientga tushmasa ham bu tanlov sizishi: yakuniy eval-120
 # raqami o'z nazorat nuqtasini tanlagan to'plamda o'lchanadi va xolis
 # bo'lmaydi.
+# Vergul bilan bir nechta CSV berilishi mumkin: asosiy to'plam + Pod'da
+# tiklangan `calls-rejected`. Ular birlashtiriladi, so'ng dev bo'lagi
+# BIRLASHGAN to'plamdan qo'ng'iroq bo'yicha kesiladi — aks holda tiklangan
+# qo'ng'iroq train'da, uning boshqa bo'lagi dev'da qolib ketishi mumkin.
 TRAIN_CSV  = env("TRAIN_CSV", "train.csv")      # CALLS_DIR ichida
 DEV_FRAC   = env("DEV_FRAC", "0.10", float)     # qo'ng'iroq bo'yicha
 DEV_SEED   = env("DEV_SEED", "20260919", int)
@@ -90,6 +95,19 @@ GRAD_ACCUM  = env("GRAD_ACCUM", "1", int)
 LR          = env("LR", "5e-5", float)
 WORKERS     = env("DATALOADER_WORKERS", "6", int)
 
+# Erta to'xtash. 10 000 qadam qo'ng'iroqlarda ~15-20 epoxa degani, Round 3/4
+# da esa optimum ~8 epoxa edi. Dev loss PATIENCE marta ketma-ket
+# yaxshilanmasa to'xtaymiz va `load_best_model_at_end` eng yaxshisini oladi.
+# To'xtash — natija, nosozlik emas.
+PATIENCE    = env("PATIENCE", "4", int)
+
+# Byudjet qo'riqchisi. Pod soatiga pul turadi; birinchi EVAL_STEPS dan keyin
+# haqiqiy s/qadam ma'lum bo'ladi va yakuniy narx bashorat qilinadi. Chegaradan
+# oshsa trening TO'XTAYDI — eng yaxshi nazorat nuqtasi saqlanib qoladi.
+POD_RATE    = env("POD_RATE", "1.10", float)     # $/soat (L40S)
+BUDGET_USD  = env("BUDGET_USD", "5.0", float)
+SETUP_USD   = env("SETUP_USD", "1.0", float)     # tiklash, yuklash, eval, CT2
+
 LORA_R       = env("LORA_R", "32", int)
 LORA_ALPHA   = env("LORA_ALPHA", "64", int)
 LORA_DROPOUT = env("LORA_DROPOUT", "0.05", float)
@@ -99,6 +117,13 @@ LORA_DROPOUT = env("LORA_DROPOUT", "0.05", float)
 USE_PODCAST = env("USE_PODCAST", "0", int)
 POD_ID = "BoburAmirov/podcasts_tashkent_dialect_youtube_uzbek_speech_dataset"
 CALL_RATIO = env("CALL_RATIO", "0.35", float)
+
+# Tashqi korpus (Round 5 da UzbekVoice). HF'dan to'g'ridan yuklanmaydi —
+# `scripts/prep_extra.py` uni oqim bilan olib, faqat kerakli qismini diskka
+# yozadi va CSV beradi. Sabab: to'liq dataset o'nlab GB, bizga esa ~25k
+# namuna kerak, va Pod soatiga pul to'lanadi.
+EXTRA_DIR = env("EXTRA_DIR", "")                 # bo'sh = ishlatilmaydi
+EXTRA_CSV = env("EXTRA_CSV", "extra.csv")        # EXTRA_DIR ichida
 
 AUG_PROB      = env("AUG_PROB", "0.75", float)       # podkast uchun
 CALL_AUG_PROB = env("CALL_AUG_PROB", "0.6", float)   # qo'ng'iroq uchun
@@ -210,17 +235,30 @@ def load_eval120_calls():
 
 
 def load_calls():
-    """Bitta CSV dan train va dev to'plamlarini QO'NG'IROQ bo'yicha kesadi."""
-    if not os.path.exists(os.path.join(CALLS_DIR, TRAIN_CSV)):
+    """CSV(lar)dan train va dev to'plamlarini QO'NG'IROQ bo'yicha kesadi."""
+    names = [x.strip() for x in TRAIN_CSV.split(",") if x.strip()]
+    if not os.path.exists(os.path.join(CALLS_DIR, names[0])):
         if not os.path.exists(CALLS_TAR):
-            sys.exit(f"Topilmadi: {CALLS_DIR}/{TRAIN_CSV} va {CALLS_TAR}.\n"
+            sys.exit(f"Topilmadi: {CALLS_DIR}/{names[0]} va {CALLS_TAR}.\n"
                      f"Qo'ng'iroq datasetini Pod'ga ko'chiring (README'ga qarang).")
         print(f"📦 {CALLS_TAR} ochilmoqda → {CALLS_DIR}", flush=True)
         os.makedirs(CALLS_DIR, exist_ok=True)
         with tarfile.open(CALLS_TAR) as t:
             t.extractall(CALLS_DIR)
 
-    df = pd.read_csv(os.path.join(CALLS_DIR, TRAIN_CSV))
+    parts = []
+    for name in names:
+        fp = os.path.join(CALLS_DIR, name)
+        if not os.path.exists(fp):
+            sys.exit(f"{fp} topilmadi (TRAIN_CSV: {TRAIN_CSV})")
+        d = pd.read_csv(fp)
+        print(f"  {name}: {len(d)} namuna")
+        parts.append(d)
+    df = pd.concat(parts, ignore_index=True)
+    before = len(df)
+    df = df.drop_duplicates(subset=["path"]).reset_index(drop=True)
+    if len(df) != before:
+        print(f"  takroriy yo'l olib tashlandi: {before - len(df)}")
     df["audio"] = df["path"].apply(lambda p: os.path.join(CALLS_DIR, p))
     missing = [p for p in df["audio"] if not os.path.exists(p)]
     if missing:
@@ -281,6 +319,31 @@ def to_ds(df, is_call):
     }, features=feats)
 
 
+def load_extra():
+    """Tashqi korpusni CSV'dan o'qiydi (UzbekVoice). is_call=0 → telefon aug.
+
+    HF'dan to'g'ridan `load_dataset` QILINMAYDI. UzbekVoice o'nlab GB, bizga
+    esa ~25k namuna kerak, va Pod soatiga pul turadi — to'liq yuklab olish
+    treningdan ko'proq vaqt olishi mumkin. `scripts/prep_extra.py` uni oqim
+    bilan olib, faqat kerakli qismini flac qilib yozadi va CSV beradi.
+
+    Audio yo'llari EXTRA_DIR ga nisbatan. Fayl yetishmasa to'xtaymiz:
+    yarim yuklangan korpus bilan o'qitish natijani tushuntirib bo'lmaydigan
+    qiladi.
+    """
+    path = os.path.join(EXTRA_DIR, EXTRA_CSV)
+    if not os.path.exists(path):
+        sys.exit(f"{path} topilmadi. Avval: python3 scripts/prep_extra.py "
+                 f"--out {EXTRA_DIR}")
+    df = pd.read_csv(path)
+    df["audio"] = df["path"].apply(lambda x: os.path.join(EXTRA_DIR, x))
+    missing = [x for x in df["audio"] if not os.path.exists(x)]
+    if missing:
+        sys.exit(f"{EXTRA_CSV}: {len(missing)} ta audio yo'q, masalan {missing[0]}")
+    print(f"Tashqi      : {len(df)} namuna ({EXTRA_DIR})")
+    return df[["audio", "sentence"]].reset_index(drop=True)
+
+
 def load_podcast():
     ds = load_dataset(POD_ID, split="train")
     acol = next(n for n, f in ds.features.items() if isinstance(f, Audio))
@@ -332,12 +395,19 @@ class CallCollator:
 
 
 class ProgressCallback(TrainerCallback):
-    """Har EVAL_STEPS da tezlik va tugash vaqtini chiqaradi (Pod narxi uchun)."""
+    """Tezlik, tugash vaqti va NARXni chiqaradi; byudjetdan oshsa to'xtatadi.
+
+    Pod soatiga to'lanadi, shuning uchun "necha qadam qoldi" emas, "qancha
+    pul qoldi" muhim. Haqiqiy s/qadam faqat yurish boshlangach ma'lum
+    bo'ladi — oldindan qilingan taxmin GPU bandligi va ma'lumot yuklashga
+    qarab ikki barobar chalg'itishi mumkin.
+    """
 
     def on_train_begin(self, args, state, control, **kw):
         import time
         self.time = time
         self.t0 = time.time()
+        self.warned = False
 
     def on_step_end(self, args, state, control, **kw):
         s = state.global_step
@@ -345,8 +415,22 @@ class ProgressCallback(TrainerCallback):
             return
         el = self.time.time() - self.t0
         per = el / s
+        left = per * (MAX_STEPS - s)
+        train_usd = (el + left) / 3600 * POD_RATE
+        total = train_usd + SETUP_USD
         print(f"  ⏱  {s}/{MAX_STEPS} | {per:.2f} s/qadam | o'tdi {el/60:.0f} daq"
-              f" | qoldi ~{per*(MAX_STEPS-s)/60:.0f} daq", flush=True)
+              f" | qoldi ~{left/60:.0f} daq", flush=True)
+        print(f"  💰 trening ~${train_usd:.2f} + tayyorgarlik ~${SETUP_USD:.2f}"
+              f" = ~${total:.2f} / ${BUDGET_USD:.2f}", flush=True)
+        if total > BUDGET_USD:
+            # Oshirib yuborishdan ko'ra erta to'xtash yaxshi: eng yaxshi
+            # nazorat nuqtasi allaqachon diskda va u yuklanadi.
+            print(f"  ⛔ BYUDJET: bashorat ${total:.2f} > ${BUDGET_USD:.2f} — "
+                  f"trening {s}-qadamda to'xtatilmoqda", flush=True)
+            control.should_training_stop = True
+        elif total > 0.8 * BUDGET_USD and not self.warned:
+            self.warned = True
+            print(f"  ⚠️  byudjetning 80% iga yaqinlashildi", flush=True)
 
 
 # ──────────────────────────── Asosiy ────────────────────────────
@@ -366,7 +450,18 @@ def main():
     calls_tr, calls_ev = to_ds(train_df, 1), to_ds(eval_df, 2)
     print(f"Qo'ng'iroq : {len(calls_tr)} train | {len(calls_ev)} eval")
 
-    if USE_PODCAST:
+    if EXTRA_DIR:
+        # Qo'ng'iroqlar batch'ning CALL_RATIO ulushini egallashi uchun ular
+        # R marta takrorlanadi. Aks holda 25k tashqi namuna 2k qo'ng'iroqni
+        # bosib ketadi va model yana toza mikrofon audiosiga moslanadi —
+        # Round 1-2 da aynan shu bo'lgan (eval WER tushdi, real qo'ng'iroqda
+        # foyda bermadi).
+        ext = to_ds(load_extra(), 0)
+        R = max(1, round(CALL_RATIO * len(ext) / ((1 - CALL_RATIO) * len(calls_tr))))
+        train_ds = concatenate_datasets([calls_tr] * R + [ext]).shuffle(seed=42)
+        print(f"Tashqi     : {len(ext)} | qo'ng'iroq takrori x{R} | "
+              f"jami {len(train_ds)} ({R*len(calls_tr)/len(train_ds):.0%} qo'ng'iroq)")
+    elif USE_PODCAST:
         pod = load_podcast()
         R = max(1, round(CALL_RATIO * len(pod) / ((1 - CALL_RATIO) * len(calls_tr))))
         train_ds = concatenate_datasets([calls_tr] * R + [pod]).shuffle(seed=42)
@@ -443,7 +538,8 @@ def main():
         train_dataset=train_ds, eval_dataset=calls_ev,
         data_collator=CallCollator(processor, model.config.decoder_start_token_id),
         processing_class=processor,
-        callbacks=[ProgressCallback()],
+        callbacks=[ProgressCallback(),
+                   EarlyStoppingCallback(early_stopping_patience=PATIENCE)],
     )
 
     print(trainer.train(resume_from_checkpoint=resume or None))
