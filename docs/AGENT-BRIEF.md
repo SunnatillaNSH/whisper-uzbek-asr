@@ -109,7 +109,47 @@ datasetga** ta'sir qiladi, shuning uchun uni topish eng qimmatli natija.
 
 Tekis taqsimot = kesish to'g'ri, muammo akustikada.
 
-### d) Namuna darajasidagi WER
+### d) Imlo va tinish belgilari — ALOHIDA O'LCHANADI
+
+**Diqqat: WER bu xatolarni KO'RSATMAYDI.** Normallashtirish paytida tinish
+belgilari olib tashlanadi va katta harf kichiklashtiriladi, ya'ni WER bo'yicha
+`Ha, bo'ladi. Xo'p?` va `ha boladi xop` bir xil. Shuning uchun bu o'lchovni
+alohida qilish kerak.
+
+Nega muhim: transkript keyin LLM'ga tahlil uchun beriladi va u yerda gap
+chegaralari ma'noni tashiydi. Tinish belgisiz matn tahlilni buzadi.
+
+**Hisoblanishi kerak bo'lgan narsalar:**
+
+*Tinish belgilari zichligi.* Muxlisa matnida va model matnida 100 so'zga
+nechtadan `.`, `,`, `?`, `!` to'g'ri keladi — taqqoslang. Model sezilarli kam
+qo'ysa, u uzun uzluksiz matn chiqarayotgan bo'ladi.
+
+*Gap chegaralari.* Har ikkala matnda gaplar soni va o'rtacha gap uzunligi
+(so'zda). Model gaplarni birlashtirib yuboryaptimi yoki mayda-mayda
+bo'lyaptimi.
+
+*Savol belgisi.* Qo'ng'iroqda savol ko'p (`Yaxshimisiz?`, `Bo'ladimi?`).
+Model `?` ni qanchalik to'g'ri qo'yadi — Muxlisa `?` qo'ygan joylarda model
+ham qo'yganmi.
+
+*Apostrof varianti.* Model qaysi belgini chiqaradi: U+2018 (`'`), U+2019 (`'`),
+ASCII (`'`) yoki umuman qo'ymaydimi. Agar Muxlisa'nikidan farq qilsa, bu
+o'lchovga ta'sir qilmaydi (normallashtiramiz), lekin **chiqish sifatiga**
+ta'sir qiladi — bir xil bo'lgani ma'qul.
+
+*Bosh harf.* Gap boshi va atoqli otlar bosh harf bilan yozilyaptimi.
+
+*Imlo.* Normallashtirilgan almashtirish juftliklaridan faqat **bir-ikki harf
+bilan farq qiladiganlarini** ajrating (Levenshtein masofasi ≤ 2). Bular
+akustik xato emas, imlo tebranishi: `bo'ladi/boladi`, `to'g'ri/togri`,
+`yo'q/yoq`. Ularni alohida sanang — bu post-processing bilan tuzatiladigan,
+trening talab qilmaydigan xatolar.
+
+Natijani jadval qilib bering: har bir o'lchov bo'yicha Muxlisa va model
+yonma-yon.
+
+### e) Namuna darajasidagi WER
 
 Har bir namuna uchun WER hisoblang va taqsimotni bering: mediana, p10, p90.
 
@@ -126,6 +166,7 @@ muammoni ko'rsatadi.
 | `analysis/hypotheses.json` | 1-bosqich natijasi |
 | `analysis/patterns.md` | Xato naqshlari, turlari, o'rni — odam o'qiydigan hisobot |
 | `analysis/hotwords.txt` | Domen atamalari, vergul bilan ajratilgan |
+| `analysis/punctuation.md` | Tinish belgilari va imlo tahlili (2d bo'limi) |
 | `analysis/hard_examples.csv` | Eng yomon namunalar, `path,wer` |
 
 `hard_examples.csv` uchun: WER bo'yicha saralang, lekin **eng yuqori 5% ni
