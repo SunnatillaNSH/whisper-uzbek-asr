@@ -174,7 +174,21 @@ def handler(job):
             hotwords=hot,
             initial_prompt=prompt,
             vad_filter=bool(inp.get("vad", True)),
-            vad_parameters=dict(min_silence_duration_ms=500, speech_pad_ms=200),
+            vad_parameters=dict(
+                # Standart qiymatlar (2000 / 400). Avval bu yerda 500 / 200
+                # turgandi — ya'ni VAD standartdan to'rt barobar agressiv edi
+                # va pauzalar orasidagi qisqa tasdiq so'zlarini nutq emas deb
+                # kesib tashlayotgandi.
+                #
+                # 254 qo'ng'iroqda o'lchandi: xatolarning 44.3% i tushib
+                # qolish (odatdagi ASR'da 15-20%), model Muxlisa'dan 19% kam
+                # so'z chiqarardi. VAD butunlay o'chirilganda so'z qamrovi
+                # 80.7% dan 87.8% ga ko'tarildi, lekin jimlikdagi
+                # gallyutsinatsiya 1.6 barobar oshdi — shuning uchun
+                # o'chirish emas, standart ostonaga qaytarish.
+                min_silence_duration_ms=int(os.environ.get("VAD_MIN_SILENCE_MS", "2000")),
+                speech_pad_ms=int(os.environ.get("VAD_SPEECH_PAD_MS", "400")),
+            ),
             # Standart qiymati True va Whisper'ning eng mashhur nuqsonini
             # keltirib chiqaradi: shovqinli joydan keyin model o'z matnini
             # qayta-qayta takrorlash halqasiga tushadi.
