@@ -36,12 +36,33 @@ top5 = wers[int(len(wers) * 0.95)] if wers else 1.0
 
 # Eval qo'ng'iroqlarini CHETLAYMIZ — aks holda model o'lchov suhbatini
 # treningda ko'radi va WER soxta yaxshi chiqadi.
+#
+# Chetlash QO'NG'IROQ darajasida: bitta suhbatning qo'shni bo'laklari bir xil
+# ovoz, bir xil mavzu va ko'pincha bir xil iboralarni saqlaydi, ya'ni faqat
+# aynan o'sha faylni olib tashlash yetarli emas.
+#
+# Manba eval-120 (117 qo'ng'iroq) — eski `calls-colab/eval.csv` (31 qo'ng'iroq)
+# ham qo'shiladi, garchi u eval-120 ning to'liq ichida bo'lsa ham: ro'yxatlar
+# kelajakda ajralib ketsa, birlashma xavfsiz tomonda qoladi.
+#
+# O'lchandi: eski, faqat 31 qo'ng'iroqli ro'yxat bilan train_weighted.csv ning
+# 1919 qatoridan 349 tasi (18%) eval-120 qo'ng'iroqlaridan edi va hammasi
+# AYNAN o'sha fayllar. Ular bilan o'qitilgan model eval-120 da o'zi ko'rgan
+# audioda baholanardi.
+EVAL_LISTS = [f'{ROOT}/data/eval120/eval.csv', f'{ROOT}/data/calls-colab/eval.csv']
 eval_calls = set()
-ev = f'{ROOT}/data/calls-colab/eval.csv'
-if os.path.exists(ev):
+found = []
+for ev in EVAL_LISTS:
+    if not os.path.exists(ev):
+        continue
+    found.append(ev)
     for r in csv.DictReader(open(ev)):
-        stem = os.path.basename(r['path']).split('.')[0]
-        eval_calls.add(stem.split('_')[0])
+        eval_calls.add(os.path.basename(r['path']).split('.')[0].split('_')[0])
+if not found:
+    # Jim o'tib ketish eng yomon holat: dataset tayyor ko'rinadi, lekin
+    # o'lchovi ma'nosiz bo'ladi. Shuning uchun to'xtaymiz.
+    sys.exit('Eval ro\'yxati topilmadi: ' + ', '.join(EVAL_LISTS))
+print(f"Eval chetlash: {len(eval_calls)} qo'ng'iroq ({len(found)} ro'yxatdan)", file=sys.stderr)
 
 # FLAC davomiyligini STREAMINFO blokidan o'qiymiz — soundfile/ffmpeg shart emas.
 def flac_duration(path):
