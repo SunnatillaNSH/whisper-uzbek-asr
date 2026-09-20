@@ -38,7 +38,15 @@ ROOT = os.path.dirname(OUT)
 # hozirgi ballar qamrovi baribir yetarli emas. Bu rejimda ballar KERAK
 # EMAS, shuning uchun ularning yo'qligi ham xato emas.
 OGIRLIKSIZ = os.environ.get('OGIRLIKSIZ') == '1'
-SAMPLE_WER = f'{OUT}/sample_wer.csv'
+# Fayl nomi ATAYLAB to'liq: unda 1249 dan 364 qator bor (qolgani RunPod'ning
+# 30 daqiqalik saqlash muddatidan chiqib ketgan). Oldin u `sample_wer.csv`
+# deb turardi — nomi to'liq faylniki edi va uni o'qigan har qanday narsa
+# to'liq deb o'ylardi. Qamrov darvozasi (pastda) shu skriptni himoya qiladi,
+# lekin BOSHQA iste'molchini himoya qilmaydi — shuning uchun nomning o'zi
+# haqiqatni aytsin. To'liq yurish bo'lganda `sample_wer.csv` nomi bilan
+# yoziladi va bu ro'yxatdagi birinchi mos fayl ishlatiladi.
+SAMPLE_WER = next((f'{OUT}/{n}' for n in ('sample_wer.csv', 'sample_wer_364_of_1249.csv')
+                   if os.path.exists(f'{OUT}/{n}')), f'{OUT}/sample_wer.csv')
 if OGIRLIKSIZ and not os.path.exists(SAMPLE_WER):
     # Ballar yo'q — og'irlash ham, buzuq yorliqlarni chetlash ham bo'lmaydi.
     print("Og'irliksiz rejim, ballarsiz", file=sys.stderr)
