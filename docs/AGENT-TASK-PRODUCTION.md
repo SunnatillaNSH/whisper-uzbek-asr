@@ -19,9 +19,12 @@ Natijalar **alohida jadvallarda** saqlanadi (`transcripts` va
 `voice_transcripts`), ya'ni bir-birini bosib ketmaydi. Bu muhim: shu tufayli
 bir xil qo'ng'iroqning ikkala versiyasi ham qoladi.
 
-**DIQQAT:** `cf-call-analyzer` **git repo EMAS**. O'zgartirishdan oldin
-tegiladigan faylning zaxira nusxasini oling:
-`cp src/worker.js src/worker.js.bak-$(date +%Y%m%d-%H%M)`
+**Eslatma (2026-09-22 yangilandi):** `cf-call-analyzer` endi **git repo** —
+GitHub'da maxfiy `sectorsoftteam/Sull-UP2`. Server va deploy ma'lumotlari o'sha
+repo ichidagi `docs/SERVER.md` da. Avvalgi "`.bak` nusxa oling" tartibi
+eskirgan: o'zgartirishlar oddiy git oqimida (alohida commit, kerak bo'lsa
+`git revert`) qilinadi. Avto-deploy yo'q — o'zgarish commit'dan keyin qo'lda
+`wrangler deploy` bilan chiqariladi.
 
 ---
 
