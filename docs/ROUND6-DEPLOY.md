@@ -38,7 +38,17 @@ shartnomasi (beam 5, VAD 2000/400, hotwords yo'q, temperatura zanjiri) bir xil.
 - Lokal tekshiruv (CPU int8, handler dekodlash sozlamalari, eval-50 dan 3 namuna): model
   ishlaydi, matn o'zbekcha va ma'noli, halqa yo'q. Endpointga hech narsa yuborilmadi ($0).
 
-## Joylash qadamlari
+## Joylash va smoke test natijasi (2026-10-05)
+
+- Yuklandi: PRIVATE repo, 11 fayl o'lchami mos, `model.bin` SHA256 lokal bilan bir xil.
+- `HF_MODEL_ID` = `...-ct2-r6` ga o'zgartirildi (PM, RunPod konsol). Rollback: `Sunnat0091/whisper-large-v3-uz-calls-ct2`.
+- Smoke: 5 qo'ng'iroq (eval-50, 9-14 s, jami ~64 s audio), proksi orqali, 5/5 success, HF 401 yo'q.
+  Probsiz tasdiq: 5/5 matn `models/round6/eval120_r6.json` bilan BAYTMA-BAYT bir xil va
+  `analysis/eval120_prod.json` dan farqli -> endpoint R6 ni ishlatmoqda. Birinchi chaqiruvlar
+  sovuq start (63-102 s), keyingilari 4 s.
+- Narx: ~64 s audio, GPU ~20 s hisob vaqti -> markazlar ($0.01 dan kam).
+
+## Joylash qadamlari (bajarildi)
 
 1. Egasi: `/Users/macbookuz/code/whisper-uzbek-asr/.venv-r6/bin/hf auth login`
    (WRITE token; men tokenni ko'rmayman).
