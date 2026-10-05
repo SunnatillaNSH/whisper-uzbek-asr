@@ -17,8 +17,8 @@ START=${POD_START_EPOCH:-$(date +%s)}
 
 scp -q -o BatchMode=yes -i "$KEY" -P "$PORT" "$ROOT/scripts/round6_pod.sh" "root@$HOST:/root/round6_pod.sh"
 $SSH "chmod +x /root/round6_pod.sh && \
-  POD_START_EPOCH=$START POD_RATE=${POD_RATE:-0.49} BUDGET_USD=${BUDGET_USD:-2.5} \
-  MAX_STEPS=${MAX_STEPS:-2000} \
+  POD_START_EPOCH=$START POD_RATE=${POD_RATE:-1.10} BUDGET_USD=${BUDGET_USD:-3.0} \
+  MAX_STEPS=${MAX_STEPS:-3000} \
   setsid nohup /root/round6_pod.sh < /dev/null > /dev/null 2>&1 & disown; sleep 3; \
   echo 'jarayonlar:'; pgrep -fc round6_pod || true"
 echo "boshlandi. Kuzatish:"

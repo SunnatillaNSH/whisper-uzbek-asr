@@ -21,32 +21,38 @@ $SSH 'rm -rf /root/repo && git clone -q --depth 1 https://github.com/SunnatillaN
   echo "pip fonda boshlandi"'
 
 echo "=== 3/4 ma'lumot ro'yxati ==="
-# Faqat KERAKLI fayllar. Round 5 da butun katalog yuborilgan va 600 MB
-# ortiqcha ketgandi (jumladan calls-colab.tar — audioning ikkinchi nusxasi).
+# Faqat KERAKLI fayllar: round6-dataset train+dev audiosi (Claude tahrirlagan va
+# chetlangan namunalar YUBORILMAYDI) + eval-120 audiosi (eval-50 uning ichida).
 python3 - <<'PY'
-import csv, json, os
-need = set()
-for r in csv.DictReader(open('analysis/train_weighted.csv', encoding='utf-8')):
-    need.add(r['path'])
-for r in csv.DictReader(open('data/eval120/eval50.csv', encoding='utf-8')):
-    need.add(r['path'])
-rej = [json.loads(l) for l in open('data/calls-rejected/rejected.jsonl')]
-need |= {'calls-rejected/' + r['path'] for r in rej}
-files = sorted('data/' + p for p in need)
+import csv, os
+RD = 'data/round6-dataset/'
+files = {RD + 'train.csv', RD + 'dev.csv', RD + 'manifest.jsonl', RD + 'eval_calls_120.json',
+         'data/eval120/eval.csv', 'data/eval_calls_120.json', 'data/eval_calls_50.json'}
+n_tr = n_dev = n_ev = 0
+for name in ('train.csv', 'dev.csv'):
+    for r in csv.DictReader(open(RD + name, encoding='utf-8')):
+        files.add(RD + r['path'])
+        if name == 'train.csv': n_tr += 1
+        else: n_dev += 1
+for r in csv.DictReader(open('data/eval120/eval.csv', encoding='utf-8')):
+    files.add('data/' + r['path']); n_ev += 1
+files = sorted(files)
 missing = [f for f in files if not os.path.exists(f)]
 if missing:
     raise SystemExit(f"{len(missing)} fayl yo'q, masalan {missing[:2]}")
+if (n_tr, n_dev, n_ev) != (2296, 266, 310):
+    raise SystemExit(f"kutilmagan hajm train/dev/eval = {n_tr}/{n_dev}/{n_ev} (kutilgan 2296/266/310) — dataset o'zgargan, PM'ga xabar bering")
 open('/tmp/round6_files.txt', 'w').write("\n".join(files) + "\n")
 mb = sum(os.path.getsize(f) for f in files) / 1e6
-print(f"fayllar: {len(files)} | hajm: {mb:.0f} MB")
+print(f"fayllar: {len(files)} | hajm: {mb:.0f} MB | train {n_tr} / dev {n_dev} / eval-120 {n_ev}")
 PY
 
 echo "=== 4/4 ko'chirish ==="
+# train_calls.py va eval_pod.py ham yuboriladi: Pod GitHub'dan klonlaydi, lokal o'zgarish (DEV_CSV + lead assertlari)
+# commit/push qilinmagan bo'lishi mumkin — Pod'da aynan lokal nusxa ishlasin.
 t0=$(date +%s)
-tar cf - -T /tmp/round6_files.txt \
-    data/eval120/eval50.csv data/eval_calls_120.json data/eval_calls_50.json \
-    data/calls-rejected/rejected.jsonl analysis/train_weighted.csv \
-  | $SSH 'cd /root/repo && tar xf - 2>/dev/null; cp analysis/train_weighted.csv data/round6_calls.csv; du -sh data; find data -type f | wc -l'
+tar cf - -T /tmp/round6_files.txt train_calls.py scripts/eval_pod.py \
+  | $SSH 'cd /root/repo && tar xf - 2>/dev/null; du -sh data; find data -type f | wc -l; ls data/round6-dataset | head'
 echo "ko'chirish: $(( $(date +%s) - t0 )) s"
 
 echo "=== paketlar holati ==="

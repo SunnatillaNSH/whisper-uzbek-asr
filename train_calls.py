@@ -80,6 +80,11 @@ TRAIN_CSV  = env("TRAIN_CSV", "train.csv")      # CALLS_DIR ichida
 DEV_FRAC   = env("DEV_FRAC", "0.10", float)     # qo'ng'iroq bo'yicha
 DEV_SEED   = env("DEV_SEED", "20260919", int)
 EVAL_CALLS = env("EVAL_CALLS", "eval_calls_120.json")   # CALLS_DIR ichida
+# Tayyor bo'lish (Round 6, Jev A-004 F1): DEV_CSV berilsa dev TRAIN_CSV dan kesilmaydi,
+# tayyor DEV_CSV olinadi va MANIFEST (CALLS_DIR ichida, lead_id/claude_edited bor) bilan
+# qo'ng'iroq, LEAD (mijoz) va eval-120 kesishuvi nolligi tekshiriladi.
+DEV_CSV    = env("DEV_CSV", "")
+MANIFEST   = env("MANIFEST", "manifest.jsonl")
 
 LANGUAGE, TASK, SR = "uzbek", "transcribe", 16000
 MAX_LABEL = 448
@@ -234,6 +239,39 @@ def load_eval120_calls():
     return ids
 
 
+def _load_presplit(tr, eval120):
+    """Tayyor train/dev + sizib chiqish assertlari (qo'ng'iroq, mijoz/lead, eval-120, Claude-tahrirlangan)."""
+    import json
+    ev = pd.read_csv(os.path.join(CALLS_DIR, DEV_CSV))
+    ev["audio"] = ev["path"].apply(lambda p: os.path.join(CALLS_DIR, p))
+    miss = [p for p in ev["audio"] if not os.path.exists(p)]
+    if miss:
+        sys.exit(f"{DEV_CSV}: {len(miss)} ta audio yo'q, masalan {miss[0]}")
+    ev["call"] = ev["path"].apply(call_id)
+    mp = os.path.join(CALLS_DIR, MANIFEST)
+    if not os.path.exists(mp):
+        sys.exit(f"TRENING TO'XTATILDI: {mp} yo'q — lead bo'yicha sizib chiqishni tekshirib bo'lmaydi")
+    man = {}
+    for l in open(mp):
+        if l.strip():
+            r = json.loads(l)
+            man[r["path"]] = r
+    lead = lambda p: man[p].get("lead_id") or ("C%s" % man[p]["call_id"])   # lead yo'q -> qo'ng'iroqning o'zi
+    tl = {lead(p) for p in tr["path"]}
+    dl = {lead(p) for p in ev["path"]}
+    assert not (set(tr["path"]) & set(ev["path"])), "train va dev yo'llari kesishdi"
+    assert not (set(tr["call"]) & set(ev["call"])), "train va dev qo'ng'iroqlari kesishdi"
+    assert not (tl & dl), f"train va dev bir mijozni ulashdi: {len(tl & dl)} ta lead"
+    assert not (set(tr["call"]) & eval120), "train eval-120 bilan kesishdi"
+    assert not (set(ev["call"]) & eval120), "dev eval-120 bilan kesishdi"
+    edited = [p for p in list(tr["path"]) + list(ev["path"]) if man[p].get("claude_edited")]
+    assert not edited, f"Claude tahrirlagan {len(edited)} namuna bor (F2)"
+    print(f"Bo'lish    : TAYYOR (dev {DEV_CSV}) train {len(tr)} namuna / {tr['call'].nunique()} qo'ng'iroq / {len(tl)} mijoz | "
+          f"dev {len(ev)} / {ev['call'].nunique()} / {len(dl)} mijoz")
+    print(f"Assertlar  : train∩dev (qo'ng'iroq, mijoz) = 0; eval-120 ({len(eval120)}) kesishuvi 0; Claude-tahrirlangan 0 — O'TDI")
+    return [tr[["audio", "sentence"]], ev[["audio", "sentence"]]]
+
+
 def load_calls():
     """CSV(lar)dan train va dev to'plamlarini QO'NG'IROQ bo'yicha kesadi."""
     names = [x.strip() for x in TRAIN_CSV.split(",") if x.strip()]
@@ -275,6 +313,9 @@ def load_calls():
         sys.exit(f"TRENING TO'XTATILDI: {TRAIN_CSV} da eval-120 ning "
                  f"{len(leaked)} qo'ng'irog'i bor, masalan {leaked[:5]}.\n"
                  f"analysis/build_weighted.py ni qaytadan yurgizing.")
+
+    if DEV_CSV:
+        return _load_presplit(df, eval120)
 
     calls = sorted(set(df["call"]))
     rng = random.Random(DEV_SEED)
