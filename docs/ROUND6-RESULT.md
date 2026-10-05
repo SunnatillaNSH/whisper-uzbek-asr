@@ -57,3 +57,6 @@ Pod L40S ($1.11/soat, 120 GB container disk, volume yo'q), Pod boshlanish epoch 
 1. **Joylashtirmang**; production Round 3/4 modelida qoladi.
 2. Qo'ng'iroq-faqat yo'nalishi ham yaxshilamadi (Round 5 +8.17, Round 6 +5.84): ko'proq Muxlisa-yorliqli namuna (2296 vs 941–1258) WER ni tushirmadi. Navbatdagi qadam — yana trening emas, avval yorliq sifati va chegara nomuvofiqligini tekshirish (yuqoridagi dev solishtiruvi; kesish chegaralarini audio bilan tasdiqlash; forced-alignment).
 3. Round 6 ni ensemble/checkpoint tanlash bilan qutqarishga urinmang: eval-120 ga qarab tanlash taqiqlangan, dev loss esa WER ni bashorat qilmadi (0.614 dev loss — WER yomon).
+
+## Correction (2026-10-05, after the leak was found)
+78% of eval-120 is in production's training sets (docs/ROUND7-PROPOSALS.md). On samples production never trained on: prod 40.7 vs R6 40.4 (−0.3, CI [−1.9, +1.2]), a TIE. So the «+5.84 worse» above is a leak effect. Owner decision: R6 goes to production and the current production model stays as the rollback (docs/ROUND6-DEPLOY.md). Jev A-006: deploy candidate 0.84.

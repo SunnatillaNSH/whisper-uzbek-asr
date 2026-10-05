@@ -101,3 +101,6 @@ data/*
 models/*
 # Qayta yig'ish yo'riqnomasi — model emas, hujjat
 !models/README.md
+
+# Round 6 deploy venv
+.venv-r6/
